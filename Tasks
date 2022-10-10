@@ -1,7 +1,18 @@
-1. User API:
-1-1. 
-1-2.
-2. Games API:
-2-1.
-2-2.
+1. User API:(2)
+1-1. User registration API
+1-2.User Authentication API(Login check)
+2. Games API:(4)
+2-1.New Game API
+2-2.Guess Word API
+2-3 List inprogress Game API
+2-4 Retrieve inprogress game and staus API
+
+Database Table 
+User Table(id, username, password)
+for auth check same user table will be used
+
+Game(id, user_id(fk), secretword ,guesscount )
+game_progress(id, game_id, user_id)
+correctword table or directly load into python file
+validword() table or directly load into python file
 
