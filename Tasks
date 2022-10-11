@@ -15,4 +15,3 @@ Game(id, user_id(fk), secretword ,guesscount )
 game_progress(id, game_id, user_id)
 correctword table or directly load into python file
 validword() table or directly load into python file
-
