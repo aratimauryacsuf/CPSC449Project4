@@ -11,6 +11,8 @@ Database Table
 User Table(id, username, password)
 for auth check same user table will be used
 
+inProgress(user_id, game_id)
+
 Game(id, user_id(fk), secretword ,guesscount )
 game_progress(id, game_id, user_id)
 correctword table or directly load into python file
