@@ -5,6 +5,7 @@ import textwrap
 import sqlite3
 import databases
 import toml
+import random
 
 from quart import Quart, g, request, abort
 # from quart_auth import basic_auth_required
@@ -76,54 +77,114 @@ def bad_request(e):
 def conflict(e):
     return {"error": str(e)}, 409
 
-@app.route("/user/login/<string:username>/<string:password>")
-async def login(username, password):
-    # db = await _get_db()
-    user = await authenticate_user(username,password)
-    if user:
-        return textwrap.dedent(
-        """
-        <h1>Welcome to the Wordle</h1>
+# @app.route("/user/login/<string:username>/<string:password>")
+# async def login(username, password):
+#     # db = await _get_db()
+#     user = await authenticate_user(username,password)
+#     if user:
+#         return textwrap.dedent(
+#         """
+#         <h1>Welcome to the Wordle</h1>
 
-        """
-    )
-    else:
-        abort(401)
+#         """
+#     )
+#     else:
+#         abort(401)
     
+
+# @app.errorhandler(401)
+# def not_found(e):
+#     return {"error": "Unauthorized"}, 401
+
+
+async def authenticate_user(username,password):
+    db = await _get_db()
+    user = await db.fetch_one("SELECT * FROM user WHERE username =:username AND userpassword =:password", values={"username":username, "password":password})
+    
+    return user
+
+@app.route("/login")
+async def basic_authLogin():
+    print("Request auth value" + str(request.authorization))
+    print(not(request.authorization))
+    if not request.authorization:
+        return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
+    else:
+        auth = request.authorization
+        user= await authenticate_user(auth.username, auth.password)
+        if user:
+            return {"authenticated": "true"},200
+        else:
+            abort(401)
+    # return ""
+        
 
 @app.errorhandler(401)
 def not_found(e):
     return {"error": "Unauthorized"}, 401
 
 
-async def authenticate_user(username,password):
-    db = await _get_db()
-    user = await db.fetch_one("select * from user")
-    # user = db.fetch_one(f"SELECT * FROM user WHERE username = :{username} AND userpassword = :{password}", values={"{username}": {username}, "{password}":{password}})
-    return user
-
-@app.route("/login")
-async def authLogin():
-    print("Request auth value" + str(request.authorization))
-    if not request.authorization:
-        return "could not verify user",401,{'WWW-Authenticate':'Basic relam="Need username and password"'}
-    else:
-        auth = request.authorization
-        user= await authenticate_user(auth.username, auth.password)
-    return "Login successful"
+# @app.route("/logout")
+# async def logout():
+#     print("Request auth value in logout " + str(request.authorization))
+#     auth = request.authorization
+#     #auth.username=""
+#     #auth.password=""
+#     auth=""
+#     print("Request auth value in logout after" + str(request))
+#     return "logged out",401, {'WWW-Authenticate':'Basic'}
+    
 
 # End of User API
     
 # Start of Game API
-    
-@app.route("/newgame")
-async def creat_newgame():
-    return textwrap.dedent(
-        """
-        <h1>At new game API</h1>
 
-        """
-    )
+async def get_userid(username,password):
+    db = await _get_db()
+    userid = await db.fetch_one("SELECT userid FROM user WHERE username =:username AND userpassword =:password", values={"username":username, "password":password})
+    print("in get user id" + str(userid))
+    return userid
+
+
+
+@app.route("/newgame" ,methods=["POST"])
+async def newgame():
+    auth = request.authorization
+    print(auth)
+    if auth:
+        user= await authenticate_user(auth.username, auth.password)
+        print(user)
+        if user:
+            userid = await get_userid(auth.username, auth.password)
+            print("user id type", type(userid))
+            db = await _get_db()
+            secret_word = await db.fetch_all("SELECT correctword FROM Correct_Words")
+            secret_word = random.choice(secret_word)
+            print("secret word type",type(secret_word))
+            query1 = "INSERT INTO Games(userid, secretword) VALUES (:userid, :secretword)"
+            values1 = {"userid": userid[0] , "secretword": secret_word[0]}
+
+            print("print values***************",values1)
+        
+            gameid = await db.execute("INSERT INTO Games(userid, secretword) VALUES (:userid, :secretword)", values={"userid": userid[0] , "secretword": secret_word[0]})
+            print(gameid)
+            if gameid:
+                return {"Location": f"/newgame/{gameid}"},201
+            else:
+                abort(417)
+
+        else:
+            
+            # return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
+            abort(401)
+    else:
+        return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
+
+
+@app.errorhandler(417)
+def not_found(e):
+    return {"error":"New game creation failed"}, 417
+
 
 
 @app.route("/guess")
