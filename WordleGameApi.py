@@ -187,7 +187,7 @@ def not_found(e):
 
 
 
-@app.route("/guess")
+@app.route("/guess", methods=["POST"])
 async def guess():
     return textwrap.dedent(
         """
@@ -196,7 +196,7 @@ async def guess():
         """
     )
 
-@app.route("/inprogressgame")
+@app.route("/inprogressgame", methods=["GET"])
 async def get_inprogressgame():
     return textwrap.dedent(
         """
@@ -205,7 +205,7 @@ async def get_inprogressgame():
         """
     )
 
-@app.route("/gamestaus")
+@app.route("/gamestaus", methods=["GET"])
 async def game_status():
     return textwrap.dedent(
         """
