@@ -108,7 +108,7 @@ async def basic_authLogin():
     print("Request auth value" + str(request.authorization))
     print(not(request.authorization))
     if not request.authorization:
-        return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
+        return {"error":"Could not verify user"},401,{'WWW-Authenticate':'Basic realm="MyApp"'}
     else:
         auth = request.authorization
         user= await authenticate_user(auth.username, auth.password)
@@ -205,8 +205,8 @@ async def get_inprogressgame():
         """
     )
 
-@app.route("/gamestaus", methods=["GET"])
-async def game_status():
+@app.route("/gamestaus/<int:gameid>", methods=["GET"])
+async def game_status(gameid):
     return textwrap.dedent(
         """
         <h1>At game status API</h1>
