@@ -21,6 +21,12 @@ app.config.from_file(f"./etc/{__name__}.toml", toml.load)
 class user:
     username: str
     userpassword: str
+        
+@dataclasses.dataclass
+class guess:
+    gameId: str
+    userId: int
+    guessWord: str
     
 async def _get_db():
     db = getattr(g, "_sqlite_db", None)
@@ -155,13 +161,46 @@ def not_found(e):
 
 
 @app.route("/guess/<string:word>", methods=["POST"])
-async def guess(word):
-    return textwrap.dedent(
-        """
-        <h1>At List of guess API</h1>
+@validate_request(guess)
+async def guess(data):
+    db = await _get_db() 
+    payload = dataclasses.asdict(data) 
+    userid = await validate_user_id(payload.userId)
 
-        """
-    )
+    if userid:
+        in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + payload.gameId)
+        if(in_progress):
+            guessEntry = await db.fetch_all("SELECT * FROM Guesses where game_id = " + payload.gameId)
+            if(guessEntry):
+                if(int(guessEntry.guess_num) < 6):
+                    game_id = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES ("+ payload.gameId +", "+ int(guessEntry.guess_num)+1 +", "+ payload.guessWord+")")
+                else:
+                    complete_game = await db.execute("INSERT INTO Completed(user_id, game_id , guess_num) VALUES ("+ payload.userId +","+ payload.gameId +", "+ int(guessEntry.guess_num) +")")
+                    return {"Message": "Game is completed, start new game"},200
+            else:
+                game_id = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES ("+ payload.gameId +", 1 , "+ payload.guessWord+")")
+
+            if(game_id):
+                secret_word = await db.fetch_all("SELECT secretword FROM Game where game_id = " + payload.gameId)
+
+                response = {}
+                if(payload.guessWord == secret_word):
+                    return {"Message": "Success, You guessed the right word."},200
+                else:
+                    for i in range(5):
+                        if payload.guessWord[i] == secret_word[i]:
+                            response.payload.guessWord[i] = "green"
+                        else:
+                            response.payload.guessWord[i] = "red"
+                    for i in payload.guessWord:
+                        if i in secret_word and response.i != "green":
+                            response.i = "yellow"
+                    return response,201
+            else:
+                abort(417)
+    else:
+        abort(417)
+
 
     
     
