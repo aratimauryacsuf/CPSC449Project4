@@ -1,48 +1,35 @@
 -- $ sqlite3 ./var/wordleGame.db < ./share/wordleschema.sql
 
+
 PRAGMA foreign_keys=ON;
 BEGIN TRANSACTION;
-DROP TABLE IF EXISTS user;
-CREATE TABLE user (
-    userid INTEGER primary key,  
-    username VARCHAR,
-    userpassword VARCHAR    
-    );
 
-INSERT INTO user(username, userpassword) VALUES('Arati', "abcd123");
-INSERT INTO user(username, userpassword) VALUES('Dillon', "wxyz123");
-INSERT INTO user(username, userpassword) VALUES('Ayush', "pqrs123");
-INSERT INTO user(username, userpassword) VALUES('Nikhil', "ABCDEFG");
-COMMIT;
+DROP TABLE IF EXISTS User;
+CREATE TABLE User(user_id INTEGER PRIMARY KEY, username VARCHAR, password VARCHAR);
 
-BEGIN TRANSACTION;
+DROP TABLE IF EXISTS Game;
+CREATE TABLE Game(game_id INTEGER PRIMARY KEY, user_id INTEGER, secretword text, guess_num INTEGER);
+
+DROP TABLE IF EXISTS In_Progress;
+CREATE TABLE In_Progress(user_id INTEGER, game_id INTEGER);
+
+DROP TABLE IF EXISTS Completed;
+CREATE TABLE Completed(user_id INTEGER, game_id INTEGER, guess_num INTEGER); 
+
+DROP TABLE IF EXISTS Guesses;
+CREATE TABLE Guesses(game_id INTEGER, guess_num INTEGER, guess_word VARCHAR);
+
 DROP TABLE IF EXISTS Correct_Words;
-CREATE TABLE Correct_Words(
-    correctwordid INTEGER primary key,
-    correctword VARCHAR
-);
+CREATE TABLE Correct_Words(correct_word_id INTEGER PRIMARY KEY, correct_word VARCHAR);
 
 DROP TABLE IF EXISTS Valid_Words;
-CREATE TABLE Valid_Words(
-    validwordid INTEGER primary key,
-    validword VARCHAR
-);
+CREATE TABLE Valid_Words(valid_word_id INTEGER PRIMARY KEY, valid_word VARCHAR);
 
-DROP TABLE IF EXISTS Games;
-CREATE TABLE Games(
-    gameid INTEGER primary key,
-    userid INTEGER,
-    secretword VARCHAR, 
-    guesscount INTEGER,
-    FOREIGN KEY(userid) REFERENCES user(userid)
-);
+INSERT INTO User(username, password) VALUES ("Arati", "pass123");
+INSERT INTO User(username, password) VALUES ("Ayush", "pass456");
+INSERT INTO User(username, password) VALUES ("Dillon", "pass789");
 
-DROP TABLE ID EXISTS In_progress;
-CREATE TABLE In_progress(
-    userid INTEGER,
-    gameid INTEGER, 
-    guessword VARCHAR,
-    FOREIGN KEY(userid) REFERENCES user(userid),
-    FOREIGN KEY(gameid) REFERENCES Games(gameid)
-);
 COMMIT;
+
+
+

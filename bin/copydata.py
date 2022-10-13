@@ -16,17 +16,17 @@ length1 = len(valid_word)
 
 connection = sqlite3.connect('./var/wordleGame.db')
 cursor = connection.cursor()
-cursor.execute('Create Table if not exists Correct_Words(correctwordid int, correctword Text)')
-cursor.execute('Create Table if not exists Valid_Words (validwordid int, validword Text)')
+# cursor.execute('Create Table if not exists Correct_Words(correctwordid int, correctword Text)')
+# cursor.execute('Create Table if not exists Valid_Words (validwordid int, validword Text)')
 
 
 for i in range(length):
     index = i+1
-    cursor.execute('insert into Correct_Words(correctwordid,correctword) values(?,?)',(index, correct_word[i]))
+    cursor.execute('insert into Correct_Words(correct_word_id,correct_word) values(?,?)',(index, correct_word[i]))
 
 for j in range(length1): 
      index = j+1
-     cursor.execute('insert into Valid_Words(validwordid,validword) values(?,?)',(index, valid_word[j]))
+     cursor.execute('insert into Valid_Words(valid_word_id,valid_word) values(?,?)',(index, valid_word[j]))
 
 connection.commit()
 
