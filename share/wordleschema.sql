@@ -36,4 +36,13 @@ CREATE TABLE Games(
     guesscount INTEGER,
     FOREIGN KEY(userid) REFERENCES user(userid)
 );
+
+DROP TABLE ID EXISTS In_progress;
+CREATE TABLE In_progress(
+    userid INTEGER,
+    gameid INTEGER, 
+    guessword VARCHAR,
+    FOREIGN KEY(userid) REFERENCES user(userid),
+    FOREIGN KEY(gameid) REFERENCES Games(gameid)
+);
 COMMIT;

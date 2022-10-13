@@ -1,4 +1,4 @@
-# import sqlite3
+
 import json
 import sqlite3
 
@@ -28,9 +28,8 @@ for j in range(length1):
      index = j+1
      cursor.execute('insert into Valid_Words(validwordid,validword) values(?,?)',(index, valid_word[j]))
 
-
-# Closing file
 connection.commit()
+
 file1.close()
 file2.close()
 
