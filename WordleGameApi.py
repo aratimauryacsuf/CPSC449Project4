@@ -51,17 +51,12 @@ def index():
 @app.route("/user/registeration", methods=["POST"])
 @validate_request(user)
 async def register_user(data):
-    db = await _get_db()
-    # print("data******",  data)
-    user = dataclasses.asdict(data)
-    # print("user data***********",user)
-    # print(user["username"])
-    # print(user["userpassword"])
-
+    db = await _get_db() 
+    user = dataclasses.asdict(data)  
     try:
         id = await db.execute(
             """
-            INSERT INTO user(username, userpassword)
+            INSERT INTO user(username, password)
             VALUES(:username, :userpassword)
             """,
             user,
@@ -69,7 +64,7 @@ async def register_user(data):
     except sqlite3.IntegrityError as e:
         abort(409, e)
 
-    user["id"] = id
+    user["user_id"] = id
     return user, 201, {"Location": f"/user/registeration/{id}"}
 
 
@@ -82,10 +77,10 @@ def bad_request(e):
 def conflict(e):
     return {"error": str(e)}, 409
 
-
+# user authentication from db
 async def authenticate_user(username,password):
     db = await _get_db()
-    user = await db.fetch_one("SELECT * FROM user WHERE username =:username AND userpassword =:password", values={"username":username, "password":password})
+    user = await db.fetch_one("SELECT * FROM user WHERE username =:username AND password =:password", values={"username":username, "password":password})
     
     return user
 
@@ -116,47 +111,43 @@ def not_found(e):
     
 # Start of Game API
 
-async def get_userid(username,password):
+# async def get_userid(username,password):
+#     db = await _get_db()
+#     userid = await db.fetch_one("SELECT user_id FROM user WHERE username =:username AND password =:password", values={"username":username, "password":password})
+#     print("in get user id" + str(userid))
+#     return userid
+
+# check if user_id present in db
+async def validate_user_id(user_id):
     db = await _get_db()
-    userid = await db.fetch_one("SELECT userid FROM user WHERE username =:username AND userpassword =:password", values={"username":username, "password":password})
-    print("in get user id" + str(userid))
-    return userid
+    user_id= await db.fetch_one("SELECT * FROM user WHERE user_id =:user_id", values={"user_id": user_id})
+    if user_id:
+        return user_id
+    else: 
+        abort(404)
+
+@app.errorhandler(404)
+def not_found(e):
+    return {"error": "User does not exist"}, 404
 
 
 
-@app.route("/newgame" ,methods=["POST"])
-async def newgame():
-    auth = request.authorization
-    print(auth)
-    if auth:
-        user= await authenticate_user(auth.username, auth.password)
-        print(user)
-        if user:
-            userid = await get_userid(auth.username, auth.password)
-            print("user id type", type(userid))
+@app.route("/newgame/<int:user_id>" ,methods=["POST"])
+async def newgame(user_id):
+            userid = await validate_user_id(user_id)
+            # print("user id type", type(userid))
             db = await _get_db()
-            secret_word = await db.fetch_all("SELECT correctword FROM Correct_Words")
+            secret_word = await db.fetch_all("SELECT correct_word FROM Correct_Words")
             secret_word = random.choice(secret_word)
-            print("secret word type",type(secret_word))
-            query1 = "INSERT INTO Games(userid, secretword) VALUES (:userid, :secretword)"
-            values1 = {"userid": userid[0] , "secretword": secret_word[0]}
-
-            print("print values***************",values1)
-        
-            gameid = await db.execute("INSERT INTO Games(userid, secretword) VALUES (:userid, :secretword)", values={"userid": userid[0] , "secretword": secret_word[0]})
-            print(gameid)
-            if gameid:
-                return {"Location": f"/newgame/{gameid}"},201
+            # print("secret word type",type(secret_word))     
+            game_id = await db.execute("INSERT INTO Game(user_id, secretword) VALUES (:user_id, :secretword)", values={"user_id": userid[0] , "secretword": secret_word[0]})
+            # print(game_id)
+            if game_id:
+                return {"success": f"Your new game id is {game_id}"},201
             else:
                 abort(417)
 
-        else:
-            # return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
-            abort(401)
-    else:
-        return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
-
-
+        
 @app.errorhandler(417)
 def not_found(e):
     return {"error":"New game creation failed"}, 417
@@ -165,28 +156,15 @@ def not_found(e):
 
 @app.route("/guess/<string:word>", methods=["POST"])
 async def guess(word):
-    auth = request.authorization
-    
-    if auth:
-        user= await authenticate_user(auth.username, auth.password)
-        
-        if user:
-            userid = await get_userid(auth.username, auth.password)
-            print("user id type", type(userid))
-            db = await _get_db()
-            
+    return textwrap.dedent(
+        """
+        <h1>At List of guess API</h1>
 
-        else: 
-            # return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
-            abort(401)
-    else:
-        return "could not verify user",401,{'WWW-Authenticate':'Basic realm="MyApp"'}
+        """
+    )
 
     
     
-    
-
-
 
 @app.route("/inprogressgame", methods=["GET"])
 async def get_inprogressgame():
@@ -205,7 +183,6 @@ async def game_status(gameid):
 
         """
     )
-
 
 
 

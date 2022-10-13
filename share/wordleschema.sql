@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS User;
 CREATE TABLE User(user_id INTEGER PRIMARY KEY, username VARCHAR, password VARCHAR);
 
 DROP TABLE IF EXISTS Game;
-CREATE TABLE Game(game_id INTEGER PRIMARY KEY, user_id INTEGER, secretword text, guess_num INTEGER);
+CREATE TABLE Game(game_id INTEGER PRIMARY KEY, user_id INTEGER, secretword VARCHAR, guess_num INTEGER);
 
 DROP TABLE IF EXISTS In_Progress;
 CREATE TABLE In_Progress(user_id INTEGER, game_id INTEGER);
