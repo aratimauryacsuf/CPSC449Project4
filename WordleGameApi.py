@@ -212,14 +212,22 @@ async def guess(data):
     
     
 
-@app.route("/inprogressgame", methods=["GET"])
-async def get_inprogressgame():
-    return textwrap.dedent(
-        """
-        <h1>At List of inprogress games API</h1>
-
-        """
-    )
+@app.route("/inprogressgame/<int:user_id>", methods=["GET"])
+async def get_inprogressgame(user_id):
+    userid = await validate_user_id(user_id)
+    # print("user id type", type(userid))
+    db = await _get_db()
+    inprogressgames = await db.fetch_all("SELECT game_id FROM In_Progress WHERE user_id = :user_id", values={"user_id": userid[0]})
+    if inprogressgames:
+        if len(inprogressgames)>=1:
+            inprogressstring = str(inprogressgames[0][0])
+            if len(inprogressgames)>1:
+                for i in range(1, len(inprogressgames)):
+                    inprogressstring += ", " +  str(inprogressgames[i][0])
+                return {"message": f"Your in progress games are {inprogressstring}"},201
+            return {"message": f"Your in progress game is {inprogressstring}"},201
+    else:
+        return {"message": f"There are no in progress games."}
 
 @app.route("/gamestaus/<int:gameid>", methods=["GET"])
 async def game_status(gameid):
