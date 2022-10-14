@@ -138,30 +138,26 @@ def not_found(e):
 
 async def update_inprogress(user_id,game_id):
     db = await _get_db()
-    entry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id , "game_id": game_id})
-    print("In update_inprogress*********",entry)
-    if entry:
-        return entry
+    inprogressEntry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id , "game_id": game_id})
+    # print("In update_inprogress*********",entry)
+    if inprogressEntry:
+        return inprogressEntry
     else:
         return {"Error": "Failed to created entry in In_Progress table"}
 
 @app.route("/newgame/<int:user_id>" ,methods=["POST"])
 async def newgame(user_id):
             userid = await validate_user_id(user_id)
-           
             db = await _get_db()
             secret_word = await db.fetch_all("SELECT correct_word FROM Correct_Words")
-            secret_word = random.choice(secret_word)
-                 
+            secret_word = random.choice(secret_word)   
             game_id = await db.execute("INSERT INTO Game(user_id, secretword) VALUES (:user_id, :secretword)", values={"user_id": userid[0] , "secretword": secret_word[0]})
-            
             if game_id:
-                entry = await update_inprogress(user_id,game_id)
-                if entry:
+                inprogressEntry = await update_inprogress(userid[0],game_id)
+                if inprogressEntry:
                     return {"success": f"Your new game id is {game_id}"},201
                 else:
                     return {"Error": "Failed to created entry in In_Progress table"}
-
             else:
                 abort(417)
 
@@ -172,13 +168,12 @@ def not_found(e):
 
 
 
-@app.route("/guess/<string:word>", methods=["POST"])
+@app.route("/guess", methods=["POST"])
 @validate_request(guess)
 async def guess(data):
     db = await _get_db() 
     payload = dataclasses.asdict(data) 
-    userid = await validate_user_id(payload.userId)
-
+    userid = await validate_user_id(payload.userId) 
     if userid:
         in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + payload.gameId)
         if(in_progress):
