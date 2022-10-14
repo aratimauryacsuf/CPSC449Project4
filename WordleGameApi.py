@@ -24,7 +24,7 @@ class user:
         
 @dataclasses.dataclass
 class guess:
-    gameId: str
+    gameId: int
     userId: int
     guessWord: str
     
@@ -136,20 +136,32 @@ async def validate_user_id(user_id):
 def not_found(e):
     return {"error": "User does not exist"}, 404
 
-
+async def update_inprogress(user_id,game_id):
+    db = await _get_db()
+    entry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id , "game_id": game_id})
+    print("In update_inprogress*********",entry)
+    if entry:
+        return entry
+    else:
+        return {"Error": "Failed to created entry in In_Progress table"}
 
 @app.route("/newgame/<int:user_id>" ,methods=["POST"])
 async def newgame(user_id):
             userid = await validate_user_id(user_id)
-            # print("user id type", type(userid))
+           
             db = await _get_db()
             secret_word = await db.fetch_all("SELECT correct_word FROM Correct_Words")
             secret_word = random.choice(secret_word)
-            # print("secret word type",type(secret_word))     
+                 
             game_id = await db.execute("INSERT INTO Game(user_id, secretword) VALUES (:user_id, :secretword)", values={"user_id": userid[0] , "secretword": secret_word[0]})
-            # print(game_id)
+            
             if game_id:
-                return {"success": f"Your new game id is {game_id}"},201
+                entry = await update_inprogress(user_id,game_id)
+                if entry:
+                    return {"success": f"Your new game id is {game_id}"},201
+                else:
+                    return {"Error": "Failed to created entry in In_Progress table"}
+
             else:
                 abort(417)
 
