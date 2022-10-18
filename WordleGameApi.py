@@ -1,4 +1,5 @@
 
+from cmath import e
 import collections
 import dataclasses
 import textwrap
@@ -66,7 +67,7 @@ async def register_user(data):
     try:
         id = await db.execute(
             """
-            INSERT INTO user(username, password)
+            INSERT INTO User(username, password)
             VALUES(:username, :userpassword)
             """,
             user,
@@ -89,10 +90,9 @@ def conflict(e):
 
 # user authentication from db
 
-
 async def authenticate_user(username, password):
     db = await _get_db()
-    user = await db.fetch_one("SELECT * FROM user WHERE username =:username AND password =:password", values={"username": username, "password": password})
+    user = await db.fetch_one("SELECT * FROM User WHERE username =:username AND password =:password", values={"username": username, "password": password})
 
     return user
 
@@ -121,26 +121,30 @@ def not_found(e):
 
 # Start of Game API
 
-# async def get_userid(username,password):
-#     db = await _get_db()
-#     userid = await db.fetch_one("SELECT user_id FROM user WHERE username =:username AND password =:password", values={"username":username, "password":password})
-#     print("in get user id" + str(userid))
-#     return userid
-
 # check if user_id present in db
 async def validate_user_id(user_id):
     db = await _get_db()
-    user_id = await db.fetch_one("SELECT * FROM user WHERE user_id =:user_id", values={"user_id": user_id})
-    print("In validate user id....", user_id)
+    user_id = await db.fetch_one("SELECT * FROM User WHERE user_id =:user_id", values={"user_id": user_id})
+   
     if user_id:
         return user_id
     else:
-        abort(404)
+        abort(404,"User does not exist")
 
 
 @app.errorhandler(404)
 def not_found(e):
-    return {"error": "User does not exist"}, 404
+    return {"error": str(e)}, 404
+
+
+async def validate_game_id(game_id,user_id):
+    db = await _get_db()
+    game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id AND user_id =:user_id", values={"game_id": game_id, "user_id":user_id})
+    if game_id is None:
+        abort(404,"game  does not exist")        
+    else:
+         return game_id
+         
 
 
 async def update_inprogress(user_id, game_id):
@@ -149,8 +153,8 @@ async def update_inprogress(user_id, game_id):
     if inprogressEntry:
         return inprogressEntry
     else:
-        return {"Error": "Failed to created entry in In_Progress table"}
-
+        abort(417,"Failed to create entry in In_Progress table")
+        
 
 @app.route("/newgame/<int:user_id>", methods=["POST"])
 async def newgame(user_id):
@@ -164,32 +168,16 @@ async def newgame(user_id):
         if inprogressEntry:
             return {"success": f"Your new game id is {game_id}"}, 201
         else:
-            return {"Error": "Failed to created entry in In_Progress table"}
+            abort(417,"Failed to create entry in In_Progress table") 
+            
     else:
-        abort(417)
+         abort(417,"New game creation failed") 
+       
 
 
 @app.errorhandler(417)
 def not_found(e):
-    return {"error": "New game creation failed"}, 417
-
-async def validate_game_id(game_id):
-    db = await _get_db()
-    game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id", values={"game_id": game_id})
-    print("In validate game ID ..." ,game_id)
-
-    if game_id is None:
-        abort(410)
-        
-    else:
-         return game_id
-         
-@app.errorhandler(410)
-def not_found(e):
-    return {"error": "game  does not exist"}, 410
-       
-
-
+    return {"error": str(e)}, 417
 
 @app.route("/guess", methods=["POST"])
 @validate_request(guess)
@@ -197,8 +185,7 @@ async def guess(data):
     db = await _get_db() 
     payload = dataclasses.asdict(data) 
     user = await validate_user_id(payload["user_id"])
-    game = await validate_game_id(payload["game_id"])
-    
+    game = await validate_game_id(payload["game_id"], payload["user_id"])
     
     if user and game:
         guessObject = {}
@@ -252,9 +239,9 @@ async def guess(data):
             else:
                 return {"error": "Not a Valid Word!"}, 404
         else:
-            return {"error": "Game completed!!Start new game "}, 201
+            return {"message": "Game completed!!Start new game "}, 201
     else:
-        abort(404)
+        abort(404,"resource does not exist")
 
 
 
