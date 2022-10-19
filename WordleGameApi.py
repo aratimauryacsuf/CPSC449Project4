@@ -217,8 +217,9 @@ async def guess(data):
 
                     for i in payload["guess_word"]:
                         response = {}
-                        response[i] = "red"
+                        response[i] = "red" 
                         positionList.append(response)
+                   
 
                     if(payload["guess_word"] == secret_word):
                         return {"Message": "Success, You guessed the right word."},200
@@ -227,11 +228,14 @@ async def guess(data):
                         for i in range(5):
                             if secret_word[i] in positionList[i].keys():
                                 positionList[i][list(positionList[i].keys())[0]] = "green"
+                                secret_word = secret_word[:i] + "_" + secret_word[i+1:]
+                                
 
                         for i,j in enumerate(payload["guess_word"]):
                             if j in secret_word and positionList[i][list(positionList[i].keys())[0]] != "green":
                                 positionList[i][list(positionList[i].keys())[0]] = "yellow"
-
+                                secret_word=secret_word.replace(j, "_")
+                               
                         guessObject["data"] = positionList
                         return guessObject,201
                 else:
