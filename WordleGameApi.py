@@ -216,8 +216,6 @@ async def guess(data):
                 if (game_id):
                     positionList = []
 
-                    
-
                     if (payload["guess_word"] == secret_word):
                         return {"Message": "Success, You guessed the right word."}, 200
                     else:
@@ -243,8 +241,12 @@ async def game_status(game_id):
     guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(game_id))
     num = guesses_num[0][0]
     gamestatus_object = []
-    
-    if (num < 6):
+    print(num , guesses_num)
+
+    if num is None:
+        abort(404,"No guesses available for this game_id")
+
+    elif (num < 6):
         for i in range(num):
 
             guessObject = {}
