@@ -28,7 +28,6 @@ class user:
 @dataclasses.dataclass
 class guess:
     game_id: int
-    user_id: int
     guess_word: str
 
 
@@ -97,8 +96,6 @@ async def authenticate_user(username, password):
 # authentication API
 @app.route("/authentication")
 async def authentication():
-    print("Request auth value" + str(request.authorization))
-    print(not (request.authorization))
     if not request.authorization:
         return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="MyApp"'}
     else:
@@ -136,10 +133,9 @@ def not_found(e):
     return {"error": str(e)}, 404
 
 # Check if game_id present in db 
-async def validate_game_id(game_id, user_id):
+async def validate_game_id(game_id):
     db = await _get_db()
-    game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id AND user_id =:user_id", values={"game_id": game_id, "user_id": user_id})
-    print("This is ur game id", game_id)
+    game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id})
     if game_id is None:
         abort(404, "game  does not exist")
     else:
@@ -185,15 +181,15 @@ def not_found(e):
 async def guess(data):
     db = await _get_db()
     payload = dataclasses.asdict(data)
-    user = await validate_user_id(payload["user_id"])
-    game = await validate_game_id(payload["game_id"], payload["user_id"])
+    game_id = await validate_game_id(payload["game_id"])
+    user_id = await db.fetch_one("SELECT user_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id[0]})
 
-    if user and game:
+    if user_id[0] and game_id[0]:
         guessObject = {}
         in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + str(payload["game_id"]))
         if (in_progress):
-            secret_word = await db.fetch_all("SELECT secretword FROM Game where game_id = " + str(payload["game_id"]))
-            secret_word = secret_word[0][0]
+            secret_word = await db.fetch_one("SELECT secretword FROM Game where game_id = " + str(payload["game_id"]))
+            secret_word = secret_word[0]
 
             is_valid_word_vj = await db.fetch_all('SELECT * FROM Valid_Words where valid_word = "' + str(payload["guess_word"]) + '";')
             is_valid_word_cj = await db.fetch_all('SELECT * FROM Correct_Words where correct_word = "' + str(payload["guess_word"]) + '";')
@@ -207,7 +203,7 @@ async def guess(data):
                         temp = num + 1
                         game_id = await db.execute('INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES (' + str(payload["game_id"]) + ', ' + str(temp) + ' , "' + str(payload["guess_word"])+'")')
                     else:
-                        complete_game = await db.execute('INSERT INTO Completed(user_id, game_id , guess_num) VALUES (' + str(payload["user_id"]) + ', ' + str(payload["game_id"]) + ', ' + str(num) + ')')
+                        complete_game = await db.execute('INSERT INTO Completed(user_id, game_id , guess_num) VALUES (' + str(user_id[0]) + ', ' + str(payload["game_id"]) + ', ' + str(num) + ')')
                         game_over = await db.execute('DELETE FROM In_Progress where game_id = ' + str(payload["game_id"]))
                         return {"Message": "You Lose!! Start new game"}, 200
                 else:
