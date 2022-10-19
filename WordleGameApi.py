@@ -57,8 +57,6 @@ def index():
     )
 
 # Start of User API
-
-
 @app.route("/user/registeration", methods=["POST"])
 @validate_request(user)
 async def register_user(data):
@@ -88,16 +86,15 @@ def bad_request(e):
 def conflict(e):
     return {"error": str(e)}, 409
 
+
 # user authentication from db
-
-
 async def authenticate_user(username, password):
     db = await _get_db()
     user = await db.fetch_one("SELECT * FROM User WHERE username =:username AND password =:password", values={"username": username, "password": password})
 
     return user
 
-
+# authentication API
 @app.route("/authentication")
 async def authentication():
     print("Request auth value" + str(request.authorization))
@@ -117,8 +114,9 @@ async def authentication():
 def not_found(e):
     return {"error": "Unauthorized"}, 401
 
-
 # End of User API
+
+
 
 # Start of Game API
 
@@ -137,7 +135,7 @@ async def validate_user_id(user_id):
 def not_found(e):
     return {"error": str(e)}, 404
 
-
+# Check if game_id present in db 
 async def validate_game_id(game_id, user_id):
     db = await _get_db()
     game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id AND user_id =:user_id", values={"game_id": game_id, "user_id": user_id})
@@ -147,7 +145,7 @@ async def validate_game_id(game_id, user_id):
     else:
          return game_id
 
-
+# function to update In_progress table
 async def update_inprogress(user_id, game_id):
     db = await _get_db()
     inprogressEntry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id, "game_id": game_id})
@@ -157,6 +155,7 @@ async def update_inprogress(user_id, game_id):
         abort(417, "Failed to create entry in In_Progress table")
 
 
+# New Game API
 @app.route("/newgame/<int:user_id>", methods=["POST"])
 async def newgame(user_id):
     userid = await validate_user_id(user_id)
@@ -180,6 +179,7 @@ def not_found(e):
     return {"error": str(e)}, 417
 
 
+# Guess API
 @app.route("/guess", methods=["POST"])
 @validate_request(guess)
 async def guess(data):
@@ -233,6 +233,7 @@ async def guess(data):
         abort(404, "resource does not exist")
 
 
+# Game Status API
 @app.route("/gamestaus/<int:game_id>", methods=["GET"])
 async def game_status(game_id):
     db = await _get_db()
@@ -241,11 +242,9 @@ async def game_status(game_id):
     guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(game_id))
     num = guesses_num[0][0]
     gamestatus_object = []
-    print(num , guesses_num)
-
+    
     if num is None:
         abort(404,"No guesses available for this game_id")
-
     elif (num < 6):
         for i in range(num):
 
@@ -265,6 +264,7 @@ async def game_status(game_id):
         return {"Message":"You have completed 6 guesses"}
 
 
+# function to compute Guess API and Game status Logic
 async def guess_compute(guess_word, secret_word,positionList):
     for j in guess_word:
         response = {}
@@ -285,6 +285,7 @@ async def guess_compute(guess_word, secret_word,positionList):
 
     return positionList
 
+# In progress game API
 @app.route("/inprogressgame/<int:user_id>", methods=["GET"])
 async def get_inprogressgame(user_id):
     userid = await validate_user_id(user_id)
