@@ -175,89 +175,136 @@ def not_found(e):
     return {"error": str(e)}, 417
 
 
-# Guess API
+#Guess API
 @app.route("/guess", methods=["POST"])
 @validate_request(guess)
 async def guess(data):
-    db = await _get_db()
-    payload = dataclasses.asdict(data)
+    db = await _get_db() 
+    payload = dataclasses.asdict(data) 
     game_id = await validate_game_id(payload["game_id"])
     user_id = await db.fetch_one("SELECT user_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id[0]})
+    guessObject = {}
 
-    if user_id[0] and game_id[0]:
-        guessObject = {}
-        in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + str(payload["game_id"]))
-        if (in_progress):
-            secret_word = await db.fetch_one("SELECT secretword FROM Game where game_id = " + str(payload["game_id"]))
-            secret_word = secret_word[0]
+    #Check if game is playable or complete. 
+    in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + str(payload["game_id"]))
+    if not in_progress:
+        return {"message": "Game has been completed already."}
+    
+    #Get secret word, format guess word, check if guess word is a valid word. 
+    secret_word = await db.fetch_one("SELECT secretword FROM Game where game_id = " + str(payload["game_id"]))
+    secret_word = secret_word[0]
+    guess_word = str(payload["guess_word"]).lower()
 
-            is_valid_word_vj = await db.fetch_all('SELECT * FROM Valid_Words where valid_word = "' + str(payload["guess_word"]) + '";')
-            is_valid_word_cj = await db.fetch_all('SELECT * FROM Correct_Words where correct_word = "' + str(payload["guess_word"]) + '";')
+    is_valid_word_v = await db.fetch_all('SELECT * FROM Valid_Words where valid_word = "' + guess_word + '";')
+    is_valid_word_c = await db.fetch_all('SELECT * FROM Correct_Words where correct_word = "' + guess_word + '";')
+    if len(is_valid_word_v)==0 and len(is_valid_word_c)==0:
+        return abort(404, "Not a Valid Word!")
 
-            guessEntry = await db.fetch_all("SELECT MAX(guess_num) FROM Guesses where game_id = " + str(payload["game_id"]))
-            num = guessEntry[0][0]
-            if len(is_valid_word_vj) or len(is_valid_word_cj):
-                if (num):
-                    guessObject["count"] = num + 1
-                    if (num < 6):
-                        temp = num + 1
-                        game_id = await db.execute('INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES (' + str(payload["game_id"]) + ', ' + str(temp) + ' , "' + str(payload["guess_word"])+'")')
-                    else:
-                        complete_game = await db.execute('INSERT INTO Completed(user_id, game_id , guess_num) VALUES (' + str(user_id[0]) + ', ' + str(payload["game_id"]) + ', ' + str(num) + ')')
-                        game_over = await db.execute('DELETE FROM In_Progress where game_id = ' + str(payload["game_id"]))
-                        return {"Message": "You Lose!! Start new game"}, 200
-                else:
-                    game_id = await db.execute('INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES (' + str(payload["game_id"]) + ', 1 , "' + str(payload["guess_word"])+'")')
-                    guessObject["count"] = 1
-                if (game_id):
-                    positionList = []
+    #Check guess count.
+    guessEntry = await db.fetch_one("SELECT Max(guess_num) FROM Guesses where game_id = " + str(payload["game_id"]))
+    guessCount = guessEntry[0]
+    if guessCount == None:
+        guessCount=0
+    guessCount+=1
+    guessObject["count"] = guessCount 
 
-                    if (payload["guess_word"] == secret_word):
-                        return {"Message": "Success, You guessed the right word."}, 200
-                    else:
-                        positionList = await guess_compute(payload["guess_word"], secret_word, positionList)
-                        
-                        guessObject["data"] = positionList
-                        return guessObject, 201
-                else:
-                    abort(417)
-            else:
-                return {"error": "Not a Valid Word!"}, 404
-        else:
-            return {"message": "Game completed!!Start new game "}, 201
+    #Check if guess is the secret word.
+    if guess_word==secret_word:
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        guessObject["message"]="You guessed the secret word!"
+        insert_completed = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id":user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome":"Win"})
+        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
+        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
+        return guessObject,200
+
+    #Guess when the guess is not the secret word.  
+    if guessCount<6:
+        insert_guess = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES(:game_id, :guess_num, :guess_word)", values={"game_id": payload["game_id"], "guess_num": guessCount, "guess_word": guess_word})
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        guessObject["message"] = "Guess again!"
+        return guessObject, 200
+
+    #If this is 6th guess
     else:
-        abort(404, "resource does not exist")
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        
+        guessObject["message"]="Out of guesses! Make a new game to play again. "
+        complete_game = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id": user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome": "Lose"})
+        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
+        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
+        return guessObject, 200
+    
 
 
 # Game Status API
-@app.route("/gamestaus/<int:game_id>", methods=["GET"])
+@app.route("/gamestatus/<int:game_id>", methods=["GET"])
 async def game_status(game_id):
     db = await _get_db()
-    secret_word1 = await db.fetch_one("SELECT secretword FROM Game where game_id = " + str(game_id))
-    guesses_num = await db.fetch_all("SELECT max(guess_num) FROM Guesses WHERE game_id = " + str(game_id))
-    guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(game_id))
-    num = guesses_num[0][0]
-    gamestatus_object = []
-    
-    if num is None:
-        abort(404,"No guesses available for this game_id")
-    elif (num < 6):
-        for i in range(num):
+    game_id = await validate_game_id(game_id)
 
-            guessObject = {}
-            guessObject["guess"] = i+1
-            positionList = []
-            secret_word = secret_word1[0]      
-            guess_word = guesses_word[i][0]
+    #Check if in completed:
+    game_id_completed = await db.fetch_one("SELECT * FROM Completed WHERE game_id = " + str(game_id[0]))
 
-            positionList = await guess_compute(guess_word, secret_word, positionList)
-            guessObject["guessword"] = positionList
-            
-            gamestatus_object.append(guessObject)
-        return gamestatus_object,201
-    
+    #If not completed:
+    if game_id_completed == None:
+        secret_word1 = await db.fetch_one("SELECT secretword FROM Game WHERE game_id = " + str(game_id[0]))
+        guesses_num = await db.fetch_all("SELECT max(guess_num) FROM Guesses WHERE game_id = " + str(game_id[0]))
+        guessObject = {}
+        if guesses_num[0][0] == None:
+            guessObject["message"]="Game is currently in progress with no guesses."
+            return guessObject, 200
+        else:
+            guessObject["message"]="Game is in progress with "+str(guesses_num[0][0])+" guesses."
+            guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(game_id[0]))
+            for i in range(guesses_num[0][0]):
+                loopNum=i+1
+                secret_word = secret_word1[0]      
+                guess_word = guesses_word[i][0]
+
+                positionList = await guess_compute(guess_word, secret_word, positionList=[])
+                guessObject["guess"+str(loopNum)] = positionList
+
     else:
-        return {"Message":"You have completed 6 guesses"}
+        guessObject = {}
+        if(game_id_completed[2]==6 and game_id_completed[3]=="Win"):
+            guessObject["message"]="Game is completed and you have won with 6 guesses."
+        elif (game_id_completed[2]==6 and game_id_completed[3]=="Lose"):
+            guessObject["message"]="Game is completed and you have lost with 6 guesses."
+        else:
+            guessObject["message"]="Game is comleted and you have won with "+str(game_id_completed[2])+ " guesses."
+    
+    return guessObject, 200
+        
 
 
 # function to compute Guess API and Game status Logic

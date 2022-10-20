@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS In_Progress;
 CREATE TABLE In_Progress(user_id INTEGER, game_id INTEGER,FOREIGN KEY(user_id) REFERENCES User(User_id),FOREIGN KEY(game_id) REFERENCES Game(game_id));
 
 DROP TABLE IF EXISTS Completed;
-CREATE TABLE Completed(user_id INTEGER, game_id INTEGER, guess_num INTEGER,FOREIGN KEY(user_id) REFERENCES User(User_id),FOREIGN KEY(game_id) REFERENCES Game(game_id)); 
+CREATE TABLE Completed(user_id INTEGER, game_id INTEGER, guess_num INTEGER, outcome VARCHAR, FOREIGN KEY(user_id) REFERENCES User(User_id),FOREIGN KEY(game_id) REFERENCES Game(game_id)); 
 
 DROP TABLE IF EXISTS Guesses;
 CREATE TABLE Guesses(game_id INTEGER, guess_num INTEGER, guess_word VARCHAR, FOREIGN KEY(game_id) REFERENCES Game(game_id));
