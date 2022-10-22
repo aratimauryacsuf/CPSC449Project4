@@ -1,3 +1,4 @@
 # CPSC449Project1
 
-Members of team: Ayush Bhardwaj, Arati Maurya, Dillon Go, Nikhil
+## Members of Team 
+Ayush Bhardwaj, Arati Maurya, Dillon Go
