@@ -1,10 +1,12 @@
 
+from cmath import e
 import collections
 import dataclasses
 import textwrap
 import sqlite3
 import databases
 import toml
+import random
 
 from quart import Quart, g, request, abort
 # from quart_auth import basic_auth_required
@@ -16,11 +18,19 @@ QuartSchema(app)
 
 app.config.from_file(f"./etc/{__name__}.toml", toml.load)
 
+
 @dataclasses.dataclass
 class user:
     username: str
     userpassword: str
-    
+
+
+@dataclasses.dataclass
+class guess:
+    game_id: int
+    guess_word: str
+
+
 async def _get_db():
     db = getattr(g, "_sqlite_db", None)
     if db is None:
@@ -46,7 +56,6 @@ def index():
     )
 
 # Start of User API
-
 @app.route("/user/registeration", methods=["POST"])
 @validate_request(user)
 async def register_user(data):
@@ -55,7 +64,7 @@ async def register_user(data):
     try:
         id = await db.execute(
             """
-            INSERT INTO user(username, userpassword)
+            INSERT INTO User(username, password)
             VALUES(:username, :userpassword)
             """,
             user,
@@ -63,7 +72,7 @@ async def register_user(data):
     except sqlite3.IntegrityError as e:
         abort(409, e)
 
-    user["id"] = id
+    user["user_id"] = id
     return user, 201, {"Location": f"/user/registeration/{id}"}
 
 
@@ -76,88 +85,264 @@ def bad_request(e):
 def conflict(e):
     return {"error": str(e)}, 409
 
-@app.route("/user/login/<string:username>/<string:password>")
-async def login(username, password):
-    # db = await _get_db()
-    user = await authenticate_user(username,password)
-    if user:
-        return textwrap.dedent(
-        """
-        <h1>Welcome to the Wordle</h1>
 
-        """
-    )
+# user authentication from db
+async def authenticate_user(username, password):
+    db = await _get_db()
+    user = await db.fetch_one("SELECT * FROM User WHERE username =:username AND password =:password", values={"username": username, "password": password})
+
+    return user
+
+# authentication API
+@app.route("/authentication")
+async def authentication():
+    if not request.authorization:
+        return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="MyApp"'}
     else:
-        abort(401)
-    
+        auth = request.authorization
+        user = await authenticate_user(auth.username, auth.password)
+        if user:
+            return {"authenticated": "true"}, 200
+        else:
+            abort(401)
+
 
 @app.errorhandler(401)
 def not_found(e):
     return {"error": "Unauthorized"}, 401
 
-
-async def authenticate_user(username,password):
-    db = await _get_db()
-    user = await db.fetch_one("select * from user")
-    # user = db.fetch_one(f"SELECT * FROM user WHERE username = :{username} AND userpassword = :{password}", values={"{username}": {username}, "{password}":{password}})
-    return user
-
-@app.route("/login")
-async def authLogin():
-    print("Request auth value" + str(request.authorization))
-    if not request.authorization:
-        return "could not verify user",401,{'WWW-Authenticate':'Basic relam="Need username and password"'}
-    else:
-        auth = request.authorization
-        user= await authenticate_user(auth.username, auth.password)
-    return "Login successful"
-
 # End of User API
-    
+
+
+
 # Start of Game API
+
+# check if user_id present in db
+async def validate_user_id(user_id):
+    db = await _get_db()
+    user_id = await db.fetch_one("SELECT * FROM User WHERE user_id =:user_id", values={"user_id": user_id})
+
+    if user_id:
+        return user_id
+    else:
+        abort(404, "User does not exist")
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return {"error": str(e)}, 404
+
+# Check if game_id present in db 
+async def validate_game_id(game_id):
+    db = await _get_db()
+    game_id = await db.fetch_one("SELECT game_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id})
+    if game_id is None:
+        abort(404, "game  does not exist")
+    else:
+         return game_id
+
+# function to update In_progress table
+async def update_inprogress(user_id, game_id):
+    db = await _get_db()
+    inprogressEntry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id, "game_id": game_id})
+    if inprogressEntry:
+        return inprogressEntry
+    else:
+        abort(417, "Failed to create entry in In_Progress table")
+
+
+# New Game API
+@app.route("/newgame/<int:user_id>", methods=["POST"])
+async def newgame(user_id):
+    userid = await validate_user_id(user_id)
+    db = await _get_db()
+    secret_word = await db.fetch_all("SELECT correct_word FROM Correct_Words")
+    secret_word = random.choice(secret_word)
+    game_id = await db.execute("INSERT INTO Game(user_id, secretword) VALUES (:user_id, :secretword)", values={"user_id": userid[0], "secretword": secret_word[0]})
+    if game_id:
+        inprogressEntry = await update_inprogress(userid[0], game_id)
+        if inprogressEntry:
+            return {"success": f"Your new game id is {game_id}"}, 201
+        else:
+            abort(417, "Failed to create entry in In_Progress table")
+
+    else:
+         abort(417, "New game creation failed")
+
+
+@app.errorhandler(417)
+def not_found(e):
+    return {"error": str(e)}, 417
+
+
+#Guess API
+@app.route("/guess", methods=["POST"])
+@validate_request(guess)
+async def guess(data):
+    db = await _get_db() 
+    payload = dataclasses.asdict(data) 
+    game_id = await validate_game_id(payload["game_id"])
+    user_id = await db.fetch_one("SELECT user_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id[0]})
+    guessObject = {}
+
+    #Check if game is playable or complete. 
+    in_progress = await db.fetch_all("SELECT * FROM In_Progress where game_id = " + str(payload["game_id"]))
+    if not in_progress:
+        return {"message": "Game has been completed already."}
     
-@app.route("/newgame")
-async def creat_newgame():
-    return textwrap.dedent(
-        """
-        <h1>At new game API</h1>
+    #Get secret word, format guess word, check if guess word is a valid word. 
+    secret_word = await db.fetch_one("SELECT secretword FROM Game where game_id = " + str(payload["game_id"]))
+    secret_word = secret_word[0]
+    guess_word = str(payload["guess_word"]).lower()
 
-        """
-    )
+    is_valid_word_v = await db.fetch_all('SELECT * FROM Valid_Words where valid_word = "' + guess_word + '";')
+    is_valid_word_c = await db.fetch_all('SELECT * FROM Correct_Words where correct_word = "' + guess_word + '";')
+    if len(is_valid_word_v)==0 and len(is_valid_word_c)==0:
+        return abort(404, "Not a Valid Word!")
+
+    #Check guess count.
+    guessEntry = await db.fetch_one("SELECT Max(guess_num) FROM Guesses where game_id = " + str(payload["game_id"]))
+    guessCount = guessEntry[0]
+    if guessCount == None:
+        guessCount=0
+    guessCount+=1
+    guessObject["count"] = guessCount 
+
+    #Check if guess is the secret word.
+    if guess_word==secret_word:
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        guessObject["message"]="You guessed the secret word!"
+        insert_completed = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id":user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome":"Win"})
+        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
+        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
+        return guessObject,200
+
+    #Guess when the guess is not the secret word.  
+    if guessCount<6:
+        insert_guess = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES(:game_id, :guess_num, :guess_word)", values={"game_id": payload["game_id"], "guess_num": guessCount, "guess_word": guess_word})
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        guessObject["message"] = "Guess again!"
+        return guessObject, 200
+
+    #If this is 6th guess
+    else:
+        guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(payload["game_id"]))
+        loopCount=guessCount-1
+        for i in range(loopCount):
+            secret_wordcopy = secret_word     
+            guess_wordloop = guesses_word[i][0]
+
+            positionList = await guess_compute(guess_wordloop, secret_wordcopy, positionList=[])
+            guessObject["guess"+str(i+1)] = positionList
+
+        positionList = await guess_compute(guess_word, secret_word, positionList=[])
+        guessObject["guess"+str(guessCount)] = positionList
+        
+        guessObject["message"]="Out of guesses! Make a new game to play again. "
+        complete_game = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id": user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome": "Lose"})
+        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
+        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
+        return guessObject, 200
+    
 
 
-@app.route("/guess")
-async def guess():
-    return textwrap.dedent(
-        """
-        <h1>At Guess Word  API</h1>
+# Game Status API
+@app.route("/gamestatus/<int:game_id>", methods=["GET"])
+async def game_status(game_id):
+    db = await _get_db()
+    game_id = await validate_game_id(game_id)
 
-        """
-    )
+    #Check if in completed:
+    game_id_completed = await db.fetch_one("SELECT * FROM Completed WHERE game_id = " + str(game_id[0]))
 
-@app.route("/inprogressgame")
-async def get_inprogressgame():
-    return textwrap.dedent(
-        """
-        <h1>At List of inprogress games API</h1>
+    #If not completed:
+    if game_id_completed == None:
+        secret_word1 = await db.fetch_one("SELECT secretword FROM Game WHERE game_id = " + str(game_id[0]))
+        guesses_num = await db.fetch_all("SELECT max(guess_num) FROM Guesses WHERE game_id = " + str(game_id[0]))
+        guessObject = {}
+        if guesses_num[0][0] == None:
+            guessObject["message"]="Game is currently in progress with no guesses."
+            return guessObject, 200
+        else:
+            guessObject["message"]="Game is in progress with "+str(guesses_num[0][0])+" guesses."
+            guesses_word = await db.fetch_all("SELECT guess_word FROM Guesses WHERE game_id = " + str(game_id[0]))
+            for i in range(guesses_num[0][0]):
+                loopNum=i+1
+                secret_word = secret_word1[0]      
+                guess_word = guesses_word[i][0]
 
-        """
-    )
+                positionList = await guess_compute(guess_word, secret_word, positionList=[])
+                guessObject["guess"+str(loopNum)] = positionList
 
-@app.route("/gamestaus")
-async def game_status():
-    return textwrap.dedent(
-        """
-        <h1>At game status API</h1>
-
-        """
-    )
-
-
-
-
-
+    else:
+        guessObject = {}
+        if(game_id_completed[2]==6 and game_id_completed[3]=="Win"):
+            guessObject["message"]="Game is completed and you have won with 6 guesses."
+        elif (game_id_completed[2]==6 and game_id_completed[3]=="Lose"):
+            guessObject["message"]="Game is completed and you have lost with 6 guesses."
+        else:
+            guessObject["message"]="Game is comleted and you have won with "+str(game_id_completed[2])+ " guesses."
+    
+    return guessObject, 200
+        
 
 
+# function to compute Guess API and Game status Logic
+async def guess_compute(guess_word, secret_word,positionList):
+    for j in guess_word:
+        response = {}
+        response[j] = "red"
+        positionList.append(response)
+
+
+    for i in range(5):
+        if secret_word[i] in positionList[i].keys():
+            positionList[i][list(positionList[i].keys())[0]] = "green"
+            secret_word = secret_word[:i] + "_" + secret_word[i+1:]
+                                
+
+    for i,j in enumerate(guess_word):
+        if j in secret_word and positionList[i][list(positionList[i].keys())[0]] != "green":
+            positionList[i][list(positionList[i].keys())[0]] = "yellow"
+            secret_word=secret_word.replace(j, "_")
+
+    return positionList
+
+# In progress game API
+@app.route("/inprogressgame/<int:user_id>", methods=["GET"])
+async def get_inprogressgame(user_id):
+    userid = await validate_user_id(user_id)
+    db = await _get_db()
+    inprogressgames = await db.fetch_all("SELECT game_id FROM In_Progress WHERE user_id = :user_id", values={"user_id": userid[0]})
+    if inprogressgames:
+        if len(inprogressgames) >= 1:
+            inprogressstring = str(inprogressgames[0][0])
+            if len(inprogressgames) > 1:
+                for i in range(1, len(inprogressgames)):
+                    inprogressstring += ", " + str(inprogressgames[i][0])
+                return {"message": f"Your in progress games are {inprogressstring}"}, 201
+            return {"message": f"Your in progress game is {inprogressstring}"}, 201
+    else:
+        return {"message": f"There are no in progress games."}
 
 
