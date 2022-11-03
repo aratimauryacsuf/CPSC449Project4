@@ -3,4 +3,6 @@
 ## Members of Team: 
 Arati Maurya, Aaditya Chaudhary, Anvit Patil, Wesley Zoroya
 
+## Task distribution
+Arati - Splitting Monolith, User API, Nginx Configuration for Loadbalancer implementation
 
