@@ -9,7 +9,7 @@ import toml
 import random
 
 from quart import Quart, g, request, abort
-# from quart_auth import basic_auth_required
+
 
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
 
@@ -19,10 +19,6 @@ QuartSchema(app)
 app.config.from_file(f"./etc/{__name__}.toml", toml.load)
 
 
-@dataclasses.dataclass
-class user:
-    username: str
-    userpassword: str
 
 
 @dataclasses.dataclass
@@ -50,87 +46,15 @@ async def close_connection(exception):
 def index():
     return textwrap.dedent(
         """
-        <h1>Welcome to the Wordle</h1>
+        <h1>Welcome to the Game API</h1>
 
         """
     )
 
-# Start of User API
-@app.route("/user/registeration", methods=["POST"])
-@validate_request(user)
-async def register_user(data):
-    db = await _get_db()
-    user = dataclasses.asdict(data)
-    try:
-        id = await db.execute(
-            """
-            INSERT INTO User(username, password)
-            VALUES(:username, :userpassword)
-            """,
-            user,
-        )
-    except sqlite3.IntegrityError as e:
-        abort(409, e)
-
-    user["user_id"] = id
-    return user, 201, {"Location": f"/user/registeration/{id}"}
-
-
-@app.errorhandler(RequestSchemaValidationError)
-def bad_request(e):
-    return {"error": str(e.validation_error)}, 400
-
-
-@app.errorhandler(409)
-def conflict(e):
-    return {"error": str(e)}, 409
-
-
-# user authentication from db
-async def authenticate_user(username, password):
-    db = await _get_db()
-    user = await db.fetch_one("SELECT * FROM User WHERE username =:username AND password =:password", values={"username": username, "password": password})
-
-    return user
-
-# authentication API
-@app.route("/authentication")
-async def authentication():
-    if not request.authorization:
-        return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="MyApp"'}
-    else:
-        auth = request.authorization
-        user = await authenticate_user(auth.username, auth.password)
-        if user:
-            return {"authenticated": "true"}, 200
-        else:
-            abort(401)
-
-
-@app.errorhandler(401)
-def not_found(e):
-    return {"error": "Unauthorized"}, 401
-
-# End of User API
-
-
 
 # Start of Game API
 
-# check if user_id present in db
-async def validate_user_id(user_id):
-    db = await _get_db()
-    user_id = await db.fetch_one("SELECT * FROM User WHERE user_id =:user_id", values={"user_id": user_id})
 
-    if user_id:
-        return user_id
-    else:
-        abort(404, "User does not exist")
-
-
-@app.errorhandler(404)
-def not_found(e):
-    return {"error": str(e)}, 404
 
 # Check if game_id present in db 
 async def validate_game_id(game_id):
@@ -142,9 +66,9 @@ async def validate_game_id(game_id):
          return game_id
 
 # function to update In_progress table
-async def update_inprogress(user_id, game_id):
+async def update_inprogress(username, game_id):
     db = await _get_db()
-    inprogressEntry = await db.execute("INSERT INTO In_Progress(user_id, game_id) VALUES (:user_id, :game_id)", values={"user_id": user_id, "game_id": game_id})
+    inprogressEntry = await db.execute("INSERT INTO In_Progress(username, game_id) VALUES (:username, :game_id)", values={"username": username, "game_id": game_id})
     if inprogressEntry:
         return inprogressEntry
     else:
@@ -152,15 +76,16 @@ async def update_inprogress(user_id, game_id):
 
 
 # New Game API
-@app.route("/newgame/<int:user_id>", methods=["POST"])
-async def newgame(user_id):
-    userid = await validate_user_id(user_id)
+@app.route("/newgame", methods=["POST"])
+async def newgame():
+    # userid = await validate_user_id(user_id)
+    username = request.authorization.username
     db = await _get_db()
     secret_word = await db.fetch_all("SELECT correct_word FROM Correct_Words")
     secret_word = random.choice(secret_word)
-    game_id = await db.execute("INSERT INTO Game(user_id, secretword) VALUES (:user_id, :secretword)", values={"user_id": userid[0], "secretword": secret_word[0]})
+    game_id = await db.execute("INSERT INTO Game(username, secretword) VALUES (:username, :secretword)", values={"username": username, "secretword": secret_word[0]})
     if game_id:
-        inprogressEntry = await update_inprogress(userid[0], game_id)
+        inprogressEntry = await update_inprogress(username, game_id)
         if inprogressEntry:
             return {"success": f"Your new game id is {game_id}"}, 201
         else:
@@ -175,6 +100,11 @@ def not_found(e):
     return {"error": str(e)}, 417
 
 
+@app.errorhandler(404)
+def not_found(e):
+    return {"error": str(e)}, 404
+
+    
 #Guess API
 @app.route("/guess", methods=["POST"])
 @validate_request(guess)
@@ -182,7 +112,7 @@ async def guess(data):
     db = await _get_db() 
     payload = dataclasses.asdict(data) 
     game_id = await validate_game_id(payload["game_id"])
-    user_id = await db.fetch_one("SELECT user_id FROM Game WHERE game_id =:game_id ", values={"game_id": game_id[0]})
+    username = await db.fetch_one("SELECT username FROM Game WHERE game_id =:game_id ", values={"game_id": game_id[0]})
     guessObject = {}
 
     #Check if game is playable or complete. 
@@ -222,7 +152,7 @@ async def guess(data):
         positionList = await guess_compute(guess_word, secret_word, positionList=[])
         guessObject["guess"+str(guessCount)] = positionList
         guessObject["message"]="You guessed the secret word!"
-        insert_completed = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id":user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome":"Win"})
+        insert_completed = await db.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username":username[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome":"Win"})
         delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
         delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
         return guessObject,200
@@ -259,7 +189,7 @@ async def guess(data):
         guessObject["guess"+str(guessCount)] = positionList
         
         guessObject["message"]="Out of guesses! Make a new game to play again. "
-        complete_game = await db.execute("INSERT INTO Completed(user_id, game_id, guess_num, outcome) VALUES(:user_id, :game_id, :guess_num, :outcome)", values={"user_id": user_id[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome": "Lose"})
+        complete_game = await db.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username": username[0], "game_id":payload["game_id"], "guess_num":guessCount, "outcome": "Lose"})
         delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=" + str(payload["game_id"]))
         delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=" + str(payload["game_id"]))
         return guessObject, 200
@@ -329,11 +259,12 @@ async def guess_compute(guess_word, secret_word,positionList):
     return positionList
 
 # In progress game API
-@app.route("/inprogressgame/<int:user_id>", methods=["GET"])
-async def get_inprogressgame(user_id):
-    userid = await validate_user_id(user_id)
+@app.route("/inprogressgame/", methods=["GET"])
+async def get_inprogressgame():
+    # userid = await validate_user_id(user_id)
+    username = request.authorization.username
     db = await _get_db()
-    inprogressgames = await db.fetch_all("SELECT game_id FROM In_Progress WHERE user_id = :user_id", values={"user_id": userid[0]})
+    inprogressgames = await db.fetch_all("SELECT game_id FROM In_Progress WHERE username = :username", values={"username": username})
     if inprogressgames:
         if len(inprogressgames) >= 1:
             inprogressstring = str(inprogressgames[0][0])
