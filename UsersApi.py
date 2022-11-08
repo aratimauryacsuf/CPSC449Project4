@@ -79,14 +79,19 @@ def conflict(e):
 # user authentication from db
 async def authenticate_user(username, password):
     db = await _get_db()
-    user = await db.fetch_one("SELECT * FROM User WHERE username =:username AND password =:password", values={"username": username, "password": password})
-
+    sql= "SELECT * FROM User WHERE username =:username AND password =:password"
+    values={"username": username, "password": password}
+    
+    app.logger.info(sql)
+    app.logger.info(values)
+    user = await db.fetch_one(sql,values)
     return user
 
 # authentication API
 @app.route("/authentication")
 async def authentication():
     if not request.authorization:
+       
         return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="MyApp"'}
     else:
         auth = request.authorization
