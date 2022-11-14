@@ -81,10 +81,10 @@ async def update_inprogress(username, game_id):
 
 
 # New Game API
-@app.route("/newgame/<string:username>", methods=["POST"])
-async def newgame(username):
+@app.route("/newgame", methods=["POST"])
+async def newgame():
     
-   #username = request.authorization.username
+    username = request.authorization.username
    
     db = await _get_db()
     sql = "SELECT correct_word FROM Correct_Words"
@@ -338,11 +338,11 @@ async def guess_compute(guess_word, secret_word,positionList):
     return positionList
 
 # In progress game API
-@app.route("/inprogressgame/<string:username>", methods=["GET"])
-async def get_inprogressgame(username):
+@app.route("/inprogressgame/", methods=["GET"])
+async def get_inprogressgame():
     # userid = await validate_user_id(user_id)
-    #username = request.authorization.username
-    username = username
+    username = request.authorization.username
+    # username = username
     db = await _get_db()
     sql = "SELECT game_id FROM In_Progress WHERE username = :username"
     values ={"username": username}
