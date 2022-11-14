@@ -46,7 +46,7 @@ def index():
 
 
 # Start of User API
-@app.route("/user/registeration", methods=["POST"])
+@app.route("/user/registration", methods=["POST"])
 @validate_request(user)
 async def register_user(data):
     db = await _get_db()
