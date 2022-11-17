@@ -35,15 +35,17 @@
 #### Game API get, will display the index page for game API.
 #### `http --auth user:password http://games.local.gd/` 
 
-#### Prints all in proress games given a user ID
-#### `http --auth user:password http://games.local.gd/inprogressgame/`
+#### Starts a new game for a player.
+#### `http --auth user:password POST http://games.local.gd/newgame`
 
-#### Allows the player to enter a 5 letter word to guess given a game ID
+#### Allows the player to enter a 5 letter word to guess given a game ID.
 #### `http --auth user:password http://games.local.gd/guess game_id=<game_ID> guess_word=<guess>`
 
-#### Prints the status of a game given a game ID
+#### Prints all in progress games for the player.
+#### `http --auth user:password http://games.local.gd/inprogressgame/`
+
+#### Prints the status of a game given a game ID.
 #### `http --auth user:password http://games.local.gd/gamestatus/<game_ID>`
 
-#### Starts a new game for a player given a user ID
-#### `http --auth user:password POST http://games.local.gd/newgame` 
+ 
 
