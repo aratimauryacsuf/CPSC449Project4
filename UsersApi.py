@@ -63,7 +63,7 @@ async def register_user(data):
         abort(409, e)
 
     user["user_id"] = id
-    return user, 201, {"Location": f"/user/registration/{id}"}
+    return user, 201, {"Location": f"/user/registeration/{id}"}
 
 
 @app.errorhandler(RequestSchemaValidationError)
