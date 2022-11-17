@@ -350,14 +350,21 @@ async def get_inprogressgame():
     app.logger.info(values)
     inprogressgames = await db.fetch_all(sql, values)
     if inprogressgames:
+        inprogressgameObject={}
+        oneinprogressgame ={}
         if len(inprogressgames) >= 1:
+
             inprogressstring = str(inprogressgames[0][0])
             if len(inprogressgames) > 1:
-                for i in range(1, len(inprogressgames)):
-                    inprogressstring += ", " + str(inprogressgames[i][0])
-                return {"message": f"Your in progress games are {inprogressstring}"}, 201
-            return {"message": f"Your in progress game is {inprogressstring}"}, 201
+                
+                for i in range(len(inprogressgames)):
+                    num = i+1
+                    inprogressgameObject[f"game{num}"] =str(inprogressgames[i][0])
+               
+                return inprogressgameObject, 200
+            return {"message": f"Your in progress game is {inprogressstring}"}, 200
     else:
+        # inprogressgameObject["message"]="There are no in progress games."
         return {"message": f"There are no in progress games."}
 
 
