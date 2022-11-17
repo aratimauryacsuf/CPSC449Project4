@@ -1,8 +1,25 @@
 # CPSC449Project2 - Group 20
 
-## Members of Team: 
-Arati Maurya, Aaditya Chaudhary, Anvit Patil, Wesley Zoroya
+### Group Members:
+##### Arati Maurya
+##### Aaditya Chaudhary
+##### Anvit Rajesh Patil
+##### Wesley Zoroya
 
-## Task distribution
-Arati - Splitting Monolith, User API, Nginx Configuration for Loadbalancer implementation
+---
+
+## **Initializing Database & Start Service:**
+
+##### `./bin/init.sh`
+##### `foreman start`
+
+---
+
+## **Testing the APIs**
+
+### **User API**
+#### `http://127.0.0.1:5000/docs`
+
+### **Game API**
+#### `http://127.0.0.1:5100/docs`
 
