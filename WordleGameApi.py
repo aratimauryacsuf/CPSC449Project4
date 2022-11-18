@@ -215,8 +215,7 @@ async def guess(data):
         insert_guess = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES(:game_id, :guess_num, :guess_word)", values={"game_id": game_id[0], "guess_num": guessCount, "guess_word": guess_word})
         sql = "SELECT guess_word FROM Guesses WHERE game_id =:game_id" 
         values= {"game_id": game_id[0]}
-        # app.logger.info(sql)
-        # app.logger.info(values)
+        
         guesses_word = await db.fetch_all(sql,values)
         loopCount=guessCount-1
         for i in range(loopCount):
@@ -235,9 +234,7 @@ async def guess(data):
     else:
         sql = "SELECT guess_word FROM Guesses WHERE game_id =:game_id" 
         values= {"game_id": game_id[0]}
-        # app.logger.info(sql)
-        # app.logger.info(values)
-
+        
         guesses_word = await db.fetch_all(sql,values)
         loopCount=guessCount-1
         for i in range(loopCount):
@@ -340,9 +337,9 @@ async def guess_compute(guess_word, secret_word,positionList):
 # In progress game API
 @app.route("/inprogressgame/", methods=["GET"])
 async def get_inprogressgame():
-    # userid = await validate_user_id(user_id)
+    
     username = request.authorization.username
-    # username = username
+    
     db = await _get_db()
     sql = "SELECT game_id FROM In_Progress WHERE username = :username"
     values ={"username": username}
@@ -351,7 +348,7 @@ async def get_inprogressgame():
     inprogressgames = await db.fetch_all(sql, values)
     if inprogressgames:
         inprogressgameObject={}
-        oneinprogressgame ={}
+        
         if len(inprogressgames) >= 1:
 
             inprogressstring = str(inprogressgames[0][0])
@@ -364,7 +361,7 @@ async def get_inprogressgame():
                 return inprogressgameObject, 200
             return {"message": f"Your in progress game is {inprogressstring}"}, 200
     else:
-        # inprogressgameObject["message"]="There are no in progress games."
+       
         return {"message": f"There are no in progress games."}
 
 

@@ -1,13 +1,13 @@
 import collections
 import dataclasses
-import textwrap
 import sqlite3
+import textwrap
+
 import databases
 import toml
-
-from quart import Quart, g, request, abort
-
-from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
+from quart import Quart, abort, g, request
+from quart_schema import (QuartSchema, RequestSchemaValidationError,
+                          validate_request)
 
 app = Quart(__name__)
 QuartSchema(app)
@@ -92,7 +92,7 @@ async def authenticate_user(username, password):
 async def authentication():
     if not request.authorization:
        
-        return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="MyApp"'}
+        return {"error": "Could not verify user"}, 401, {'WWW-Authenticate': 'Basic realm="Wordle Game Login"'}
     else:
         auth = request.authorization
         user = await authenticate_user(auth.username, auth.password)
