@@ -20,19 +20,11 @@
 ## **Testing the APIs**
 ### Note: In order to run the API, you will ocasionally have to to supply specific variables. Any time this is required, please replace the < variable > with the correct information.
 
-
-### **User API**
-#### `http://127.0.0.1:5000/docs`
-
-#### User API get, will display the index page for user API.
-#### `http GET  http://users.local.gd/` 
-
-#### Registers a new user.
-#### `http POST http://users.local.gd/user/registration username=<username> userpassword=<password>` 
-
-
 ### **Game API**
 #### `http://127.0.0.1:5100/docs`
+
+#### Registers a new user.
+#### `http POST http://games.local.gd/user/registration username=<USERNAME> userpassword=<PASSWORD>`
 
 #### Game API get, will display the index page for game API.
 #### `http --auth user:password http://games.local.gd/` 
