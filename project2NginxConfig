@@ -1,5 +1,4 @@
-
-	upstream gameservice { server 127.0.0.1:5100; server 127.0.0.1:5101; server 127.0.0.1:5102; }
+upstream gameservice { server 127.0.0.1:5100; server 127.0.0.1:5101; server 127.0.0.1:5102; }
 
 	server {
 	       listen 80;
@@ -14,6 +13,11 @@
                         proxy_pass  http://gameservice;
                 }
 
+   		location /user/registration {
+                       proxy_pass http://127.0.0.1:5000/user/registration;
+                }
+	           
+   
                 location = /auth {
                            internal;
                          proxy_pass              http://127.0.0.1:5000/authentication;
@@ -23,16 +27,3 @@
 	        }
 	       
 	}
-	 server {
-               listen 80;
-               listen [::]:80;
-
-               server_name users.local.gd;
-
-               location / {
-
-                        proxy_pass http://127.0.0.1:5000;
-                }
-        }
-
-
