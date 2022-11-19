@@ -7,6 +7,8 @@
 ##### Wesley Zoroya
 
 ---
+## **Setting up NginxConfig**
+#### Add Nginx config file "project2NginxConfig"  at path `/etc/nginx/sites-enabled`
 
 ## **Initializing Database & Start Service:**
 
