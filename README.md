@@ -20,19 +20,11 @@
 ## **Testing the APIs**
 ### Note: In order to run the API, you will ocasionally have to to supply specific variables. Any time this is required, please replace the < variable > with the correct information.
 
-
-### **User API**
-#### `http://127.0.0.1:5000/docs`
-
-#### User API get, will display the index page for user API.
-#### `http GET  http://users.local.gd/` 
-
-#### Registers a new user.
-#### `http POST http://users.local.gd/user/registration username=<username> userpassword=<password>` 
-
-
 ### **Game API**
 #### `http://127.0.0.1:5100/docs`
+
+#### Registers a new user.
+#### `http POST http://games.local.gd/user/registration username=<USERNAME> userpassword=<PASSWORD>`
 
 #### Game API get, will display the index page for game API.
 #### `http --auth user:password http://games.local.gd/` 
@@ -41,13 +33,12 @@
 #### `http --auth user:password POST http://games.local.gd/newgame`
 
 #### Allows the player to enter a 5 letter word to guess given a game ID.
+#### Note: [Red : Incorrect Letter] [Yellow : Correct Letter, Incorrect Place] [Green : Correct Letter, Correct Place]
 #### `http --auth user:password http://games.local.gd/guess game_id=<game_ID> guess_word=<guess>`
+
 
 #### Prints all in progress games for the player.
 #### `http --auth user:password http://games.local.gd/inprogressgame/`
 
 #### Prints the status of a game given a game ID.
 #### `http --auth user:password http://games.local.gd/gamestatus/<game_ID>`
-
- 
-
