@@ -35,9 +35,9 @@ def report_result(data):
     result =dataclasses.asdict(data)
     # # result ={"username":"PQR", "game_status":"WIN", "guess_count":4}
     # print(result)
-    print(redis_db.hexists(result["username"]),"score")
+   
     score =0
-    
+    print("if key exists",redis_db.hexists(result["username"],score))
     if(result["game_status"].lower()== 'win') and (result["guess_count"]== 6):
         score +=1
     elif (result["game_status"].lower()== 'win') and (result["guess_count"]== 5):
