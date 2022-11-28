@@ -37,6 +37,7 @@ def report_result(data):
     # print(result)
    
     score =0
+    
     print("if key exists",redis_db.hexists(result["username"],score))
     if(result["game_status"].lower()== 'win') and (result["guess_count"]== 6):
         score +=1
@@ -52,9 +53,13 @@ def report_result(data):
         score += 6
     else:
         score += 0
+    if(redis_db.hexists(result["username"],score)):
+     print("score",score)
+    
     redis_db.hset(result["username"], "game_status", result["game_status"])
     redis_db.hset(result["username"], "guess_count", result["guess_count"])
     print(redis_db.hget(result["username"],"game_status"))
+    print(redis_db.hget(result["username"],score))
     # redis_db.hset(result["username"], "score", 100)
 
     # redis_db.hset("user2", "game_status", "loss")
