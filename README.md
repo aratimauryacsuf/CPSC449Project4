@@ -4,7 +4,7 @@
 ##### Arati Maurya
 ##### Shreya Bhattacharya
 ##### Aaditya Chaudhari
-##### Wesley Zoroya
+##### Ayush Bharadawaj
 
 ---
 ## **Setting up NginxConfig**
@@ -21,9 +21,8 @@
 ### Note: In order to run the API, you will ocasionally have to to supply specific variables. Any time this is required, please replace the < variable > with the correct information.
 
 ### **Leaderboard Service**
-#### `http://127.0.0.1:5200/docs`
 
-#### Registers a new user.
+#### Api for posting game result of the users:
 #### `http POST http://games.local.gd/user/registration username=<USERNAME> userpassword=<PASSWORD>`
 
 #### API for retreiving top 10 users by average score
