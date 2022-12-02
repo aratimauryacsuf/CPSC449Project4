@@ -1,13 +1,15 @@
 import textwrap
 import dataclasses
+import redis
 from quart import Quart, abort, g, request
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
 
-import redis
+
 
 app = Quart(__name__)
 QuartSchema(app)
 
+#------- redis client object ---------#
 
 redis_db=redis.Redis(host="localhost", port=6379, db=0)
 
@@ -31,7 +33,9 @@ def index():
 @validate_request(result)
 def report_result(data):
     result =dataclasses.asdict(data)
-    
+
+#---------------------computing score based on game result------------------------#
+
     if(result["game_status"].lower()== 'win') and (result["guess_count"]== 6):
         score =1
     elif (result["game_status"].lower()== 'win') and (result["guess_count"]== 5):
@@ -47,29 +51,52 @@ def report_result(data):
     elif (result["game_status"].lower()== 'loss') and (result["guess_count"]== 6):
         score = 0
     else:
-        return "Please enter game status win or loss and guess count between 1 and 6"
-        
- 
-    redis_db.lpush(result["username"],score)
+        return "Please enter game status win or loss and guess count between 1 to 6" , 403
 
-    list_elements=redis_db.lrange(result["username"],0,-1)
-  
-    print("list element"+ str(list_elements))
-    total_score= 0
-    for element in list_elements:
-        print(element)
-        total_score+=int(element)
+#-------------------- end of computing score based on game result------------------------#
+
+
+#-----------Using hash datatype --------------# 
     
-    print("total score"+ str(total_score))
 
-    avg_score= total_score / len(list_elements)
-    print(avg_score)
-
-    redis_db.zadd("Users", {result["username"]: avg_score})
-    users = redis_db.zrevrange("Users", 0, -1, withscores=True)
-    print(users)
+    count =1
+    if not (redis_db.hexists(result["username"],"total_score")):
+        redis_db.hset(result["username"],"total_score", score)
+        redis_db.hset(result["username"],"game_count",count)
+    else:  
+        redis_db.hincrby(result["username"],"total_score",score)
+        redis_db.hincrby(result["username"],"game_count",count)
 
     
-    return "Game result added"
+    total_score = int(redis_db.hget(result["username"],"total_score"))
+    total_game =int(redis_db.hget(result["username"],"game_count"))
+
+    avg_score = total_score /total_game
+    
+
+ #-----------End of Using hash datatype --------------# 
 
 
+#--------Adding the computed result to sorted set---------#
+
+    redis_db.zadd("users", {result["username"]: avg_score})
+    
+#--------End of adding the computed result to sorted set---------#
+    
+    return {"message": " Result posted successfully"},200
+
+
+@app.route("/top_10_user", methods=["GET"])
+def _get_top10_user():
+    
+    top10_user = redis_db.zrevrange("users",0,9,withscores=True)
+   
+    top10_user_object =[]
+    
+    for user in top10_user:
+        user_object={}
+        user_object[str(user[0],'UTF-8')] = float(user[1])
+        top10_user_object.append(user_object)
+
+
+    return top10_user_object, 200

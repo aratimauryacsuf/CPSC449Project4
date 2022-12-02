@@ -16,6 +16,10 @@ upstream gameservice { server 127.0.0.1:5100; server 127.0.0.1:5101; server 127.
    		location /user/registration {
                        proxy_pass http://127.0.0.1:5000/user/registration;
                 }
+                
+                location /top_10_user {
+                       proxy_pass http://127.0.0.1:5200/top_10_user;
+                }
 	           
    
                 location = /auth {
