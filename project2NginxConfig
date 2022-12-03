@@ -21,7 +21,7 @@ server {
     }
 	           
     location /top_10_user {
-        proxy_pass http://127.0.0.1:5200/top_10_user;
+        proxy_pass http://127.0.0.1:5400/top_10_user;
     }
    
     location = /auth {
