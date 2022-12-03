@@ -8,6 +8,7 @@ import databases
 import toml
 import random
 import uuid
+import itertools
 
 from quart import Quart, g, request, abort
 
@@ -31,7 +32,8 @@ class guess:
 async def _get_db():
     db = getattr(g, "_sqlite_db", None)
     if db is None:
-        db = g._sqlite_db = databases.Database(app.config["DATABASES"]["URL"])
+        url = itertools.cycle([app.config["DATABASES"]["PRIMARY_URL"],app.config["DATABASES"]["SECONDARY_1_URL"],app.config["DATABASES"]["SECONDARY_2_URL"]])
+        db = g._sqlite_db = databases.Database(next(url))
         await db.connect()
     return db
 
