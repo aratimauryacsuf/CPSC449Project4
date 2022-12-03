@@ -1,22 +1,26 @@
-# CPSC449Project2 - Group 20
+# CPSC449Project3 - Group 24
 
 ### Group Members:
 ##### Arati Maurya
+##### Shreya Bhattacharya
 ##### Aaditya Chaudhari
-##### Anvit Rajesh Patil
-##### Wesley Zoroya
+##### Ayush Bhardwaj
 
 ---
+## **Setting up Redis**
+##### `sudo apt install --yes redis`
+##### `sudo apt install --yes python3-hiredis`
+
 ## **Setting up NginxConfig**
-#### Add Nginx config file "project2NginxConfig"  at path `/etc/nginx/sites-enabled`
+#### Add Nginx config file "project3NginxConfig"  at path `/etc/nginx/sites-enabled`
 
-## **Initializing Database & Start Service:**
+## **Initializing SQLite and Redis Database & Start Service:**
 
+##### `foreman start`
 ##### `./bin/init.sh`
-##### `foreman start -m user=1,game=3`
+
 
 ---
-
 ## **Testing the APIs**
 ### Note: In order to run the API, you will ocasionally have to to supply specific variables. Any time this is required, please replace the < variable > with the correct information.
 
@@ -31,16 +35,25 @@
 
 #### Starts a new game for a player.
 #### `http --auth user:password POST http://games.local.gd/newgame`
-#### `http --auth user:password POST http://WordleGameApis.local.gd/newgame`
-
 
 #### Allows the player to enter a 5 letter word to guess given a game ID.
 #### Note: [Red : Incorrect Letter] [Yellow : Correct Letter, Incorrect Place] [Green : Correct Letter, Correct Place]
 #### `http --auth user:password http://games.local.gd/guess game_id=<game_ID> guess_word=<guess>`
-
 
 #### Prints all in progress games for the player.
 #### `http --auth user:password http://games.local.gd/inprogressgame/`
 
 #### Prints the status of a game given a game ID.
 #### `http --auth user:password http://games.local.gd/gamestatus/<game_ID>`
+
+
+### **Leaderboard Service**
+
+#### Posting the game result to redis.
+#### `http POST http://127.0.0.1:5400/report_result game_status=<game_status> guess_count=<game_count> username=<username>`
+
+#### API for retreiving top 10 users by average score
+#### `http GET http://games.local.gd/top_10_user`
+
+
+
