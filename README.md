@@ -31,6 +31,8 @@
 
 #### Starts a new game for a player.
 #### `http --auth user:password POST http://games.local.gd/newgame`
+#### `http --auth user:password POST http://WordleGameApis.local.gd/newgame`
+
 
 #### Allows the player to enter a 5 letter word to guess given a game ID.
 #### Note: [Red : Incorrect Letter] [Yellow : Correct Letter, Incorrect Place] [Green : Correct Letter, Correct Place]

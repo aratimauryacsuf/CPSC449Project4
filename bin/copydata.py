@@ -9,7 +9,7 @@ valid_word_file = open("./share/valid.json")
 valid_word = json.load(valid_word_file)
 
 
-connection = sqlite3.connect('./var/wordleGame.db')
+connection = sqlite3.connect('./var/game_primary/mount/wordleGame.db')
 cursor = connection.cursor()
 
 

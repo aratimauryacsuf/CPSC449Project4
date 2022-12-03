@@ -19,7 +19,10 @@ app = Quart(__name__)
 QuartSchema(app)
 
 app.config.from_file(f"./etc/{__name__}.toml", toml.load)
-
+URL1 = app.config["DATABASES"]["PRIMARY_URL"]
+URL2 = app.config["DATABASES"]["SECONDARY_1_URL"]
+URL3 = app.config["DATABASES"]["SECONDARY_2_URL"]
+url = itertools.cycle([URL1,URL2,URL3])
 
 
 
@@ -29,12 +32,16 @@ class guess:
     guess_word: str
 
 
+async def _get_db_write():
+    db = getattr(g, "_sqlite_db", None)
+    db = g._sqlite_db = databases.Database(URL1)
+    await db.connect()
+    return db
+
 async def _get_db():
     db = getattr(g, "_sqlite_db", None)
-    if db is None:
-        url = itertools.cycle([app.config["DATABASES"]["PRIMARY_URL"],app.config["DATABASES"]["SECONDARY_1_URL"],app.config["DATABASES"]["SECONDARY_2_URL"]])
-        db = g._sqlite_db = databases.Database(next(url))
-        await db.connect()
+    db = g._sqlite_db = databases.Database(next(url))
+    await db.connect()
     return db
 
 
@@ -74,7 +81,7 @@ async def validate_game_id(game_id):
 
 # function to update In_progress table
 async def update_inprogress(username, game_id):
-    db = await _get_db()
+    db = await _get_db_write()
     inprogressEntry = await db.execute("INSERT INTO In_Progress(username, game_id) VALUES (:username, :game_id)", values={"username": username, "game_id": game_id})
     if inprogressEntry:
         return inprogressEntry
@@ -85,10 +92,10 @@ async def update_inprogress(username, game_id):
 # New Game API
 @app.route("/newgame", methods=["POST"])
 async def newgame():
-    
     username = request.authorization.username
    
     db = await _get_db()
+
     sql = "SELECT correct_word FROM Correct_Words"
     app.logger.info(sql)
     secret_word = await db.fetch_all(sql)
@@ -103,8 +110,8 @@ async def newgame():
     query = """INSERT INTO Game(game_id, username, secretword) 
         VALUES (:game_id, :username, :secretword)
         """
-
-    result = await db.execute(query,game)
+    db_write = await _get_db_write()
+    result = await db_write.execute(query,game)
     if result:
         inprogressEntry = await update_inprogress(username, game["game_id"])
         game_id = game["game_id"]
@@ -132,6 +139,7 @@ def not_found(e):
 @validate_request(guess)
 async def guess(data):
     db = await _get_db() 
+    
     payload = dataclasses.asdict(data) 
     game_id = await validate_game_id(payload["game_id"])
     
@@ -195,6 +203,8 @@ async def guess(data):
     app.logger.info(sql)
     app.logger.info(values)
     if guess_word==secret_word:
+        db_write = await _get_db_write()
+
         guesses_word = await db.fetch_all(sql,values)
         loopCount=guessCount-1
         for i in range(loopCount):
@@ -207,18 +217,21 @@ async def guess(data):
         positionList = await guess_compute(guess_word, secret_word, positionList=[])
         guessObject["guess"+str(guessCount)] = positionList
         guessObject["message"]="You guessed the secret word!"
-        insert_completed = await db.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username":username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome":"Win"})
-        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]} )
-        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
+        insert_completed = await db_write.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username":username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome":"Win"})
+        delete_inprogress = await db_write.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]} )
+        delete_guesses = await db_write.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
         return guessObject,200
 
     #Guess when the guess is not the secret word.  
     if guessCount<6:
-        insert_guess = await db.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES(:game_id, :guess_num, :guess_word)", values={"game_id": game_id[0], "guess_num": guessCount, "guess_word": guess_word})
+        db_write = await _get_db_write()
+        insert_guess = await db_write.execute("INSERT INTO Guesses(game_id, guess_num, guess_word) VALUES(:game_id, :guess_num, :guess_word)", values={"game_id": game_id[0], "guess_num": guessCount, "guess_word": guess_word})
+        
+
         sql = "SELECT guess_word FROM Guesses WHERE game_id =:game_id" 
         values= {"game_id": game_id[0]}
         
-        guesses_word = await db.fetch_all(sql,values)
+        guesses_word = await db_write.fetch_all(sql,values)
         loopCount=guessCount-1
         for i in range(loopCount):
             secret_wordcopy = secret_word     
@@ -250,9 +263,12 @@ async def guess(data):
         guessObject["guess"+str(guessCount)] = positionList
         
         guessObject["message"]="Out of guesses! Make a new game to play again. "
-        complete_game = await db.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username": username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome": "Lose"})
-        delete_inprogress = await db.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
-        delete_guesses = await db.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
+
+        db_write = await _get_db_write()
+
+        complete_game = await db_write.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username": username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome": "Lose"})
+        delete_inprogress = await db_write.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
+        delete_guesses = await db_write.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
         return guessObject, 200
     
 
@@ -260,6 +276,7 @@ async def guess(data):
 # Game Status API
 @app.route("/gamestatus/<string:game_id>", methods=["GET"])
 async def game_status(game_id):
+    print(next(url))
     db = await _get_db()
     game_id = await validate_game_id(game_id)
 
