@@ -4,6 +4,8 @@ mount-dir: "./var/game_secondary_1/mount"
 # Optional. Path to store underlying data.
 data-dir: "./var/game_secondary_1/data"
 
+exec: hypercorn WordleGameApi --reload --debug --bind WordleGameApi.local.gd:$PORT --access-logfile - --error-logfile - --log-level DEBUG
+
 http:
   # Specifies the bind address of the HTTP API server.
   addr: ":20203"

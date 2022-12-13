@@ -5,7 +5,7 @@ mount-dir: "./var/game_primary/mount"
 # Optional. Path to store underlying data.
 data-dir: "./var/game_primary/data"
 
-exec: "hypercorn WordleGameApi --reload --debug --bind bookWordleGameApis.local.gd:$PORT --access-logfile - --error-logfile - --log-level DEBUG"
+exec: "hypercorn WordleGameApi --reload --debug --bind WordleGameApis.local.gd:$PORT --access-logfile - --error-logfile - --log-level DEBUG"
 
 # Static leadership can be used instead of Consul if only one
 # node should ever be the primary. Only one node in the cluster
