@@ -394,7 +394,7 @@ async def get_inprogressgame():
 @app.route("/register_url", methods=["POST"])
 @validate_request(client_url)
 async def register_url(data):
-     print('testttttttt')
+    #  print('testttttttt')
      client_url =dataclasses.asdict(data)
      db_write = await _get_db_write()
      print(client_url['url'])

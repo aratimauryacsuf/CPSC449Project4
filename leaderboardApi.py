@@ -34,6 +34,7 @@ response = httpx.post('http://127.0.0.1:5100/register_url', json={'url': leaderb
 print(response)
 
 @app.route("/")
+
 def index():
     return textwrap.dedent(
         """
