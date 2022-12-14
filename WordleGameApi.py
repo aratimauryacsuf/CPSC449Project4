@@ -32,6 +32,10 @@ class guess:
     guess_word: str
 
 
+@dataclasses.dataclass
+class client_url:
+    url: str
+
 async def _get_db_write():
     db = getattr(g, "_sqlite_db", None)
     db = g._sqlite_db = databases.Database(URL1)
@@ -92,6 +96,7 @@ async def update_inprogress(username, game_id):
 # New Game API
 @app.route("/newgame", methods=["POST"])
 async def newgame():
+    print('newgameeeeee')
     username = request.authorization.username
    
     db = await _get_db()
@@ -382,5 +387,26 @@ async def get_inprogressgame():
     else:
        
         return {"message": f"There are no in progress games."}
+
+
+
+#Register client URL API
+@app.route("/register_url", methods=["POST"])
+@validate_request(client_url)
+async def register_url(data):
+     print('testttttttt')
+     client_url =dataclasses.asdict(data)
+     db_write = await _get_db_write()
+     print(client_url['url'])
+     try:
+        insert_url = await db_write.execute("INSERT INTO Client_Urls(client_url) VALUES(:client_url)", values={"client_url": client_url['url']})
+     except sqlite3.IntegrityError as e:
+        abort(409, e)
+     if insert_url:
+        return {"success": "Client url registration successful"}, 201
+     else:
+        abort(417, "Client url registration failed")
+
+
 
 

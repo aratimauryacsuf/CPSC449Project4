@@ -1,6 +1,9 @@
 import textwrap
 import dataclasses
 import redis
+import httpx
+import os
+import socket
 from quart import Quart, abort, g, request
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
 
@@ -20,14 +23,24 @@ class result:
     guess_count: int
 
 
+username = socket.getfqdn()
+env = os.environ
+port = env['PORT']
+print(env['PORT'])
+print(username)
+
+leaderboard_url = "http://127.0.0.1:5400/report_result"    
+response = httpx.post('http://127.0.0.1:5100/register_url', json={'url': leaderboard_url})
+print(response)
+
 @app.route("/")
 def index():
     return textwrap.dedent(
         """
         <h1>Welcome to the Leaderboard API</h1>
-
         """
     )
+
 
 @app.route("/report_result", methods=["POST"])
 @validate_request(result)
