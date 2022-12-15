@@ -1,7 +1,7 @@
 # CPSC449Project4 - Group 23
 
 ### Group Members:
-##### Arati Maurya
+##### Arati Hanumanprasad Maurya
 ##### Dillon Go
 ##### Brijesh Prajapati
 ##### SreeVidya Sreekantham
