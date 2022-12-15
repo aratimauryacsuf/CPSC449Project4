@@ -28,7 +28,7 @@ CREATE TABLE Valid_Words(valid_word_id INTEGER PRIMARY KEY, valid_word VARCHAR);
 CREATE INDEX Valid_Words_idx_validword ON Valid_Words(valid_word);
 
 DROP TABLE IF EXISTS Client_Urls;
-CREATE TABLE Client_Urls(url_id INTEGER PRIMARY KEY, client_url VARCHAR);
+CREATE TABLE Client_Urls(url_id INTEGER PRIMARY KEY, client_name VARCHAR, client_url VARCHAR);
 
 COMMIT;
 
