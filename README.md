@@ -1,11 +1,10 @@
-# CPSC449Project3 - Group 24
+# CPSC449Project4 - Group 23
 
 ### Group Members:
 ##### Arati Maurya
-##### Shreya Bhattacharya
-##### Aaditya Chaudhari
-##### Ayush Bhardwaj
-
+##### Dillon Go
+##### Brijesh Prajapati
+##### SreeVidya Sreekantham
 ---
 ## **Setting up Redis**
 ##### `sudo apt install --yes redis`
