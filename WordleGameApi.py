@@ -9,6 +9,10 @@ import toml
 import random
 import uuid
 import itertools
+import datetime
+import requests
+from redis import Redis
+from rq import Queue
 
 from quart import Quart, g, request, abort
 
@@ -35,6 +39,7 @@ class guess:
 @dataclasses.dataclass
 class client_url:
     url: str
+    name: str
 
 async def _get_db_write():
     db = getattr(g, "_sqlite_db", None)
@@ -396,13 +401,27 @@ async def get_inprogressgame():
 async def register_url(data):
     #  print('testttttttt')
      client_url =dataclasses.asdict(data)
+     print(client_url)
+     db = await _get_db()
+     sql="SELECT * FROM Client_Urls WHERE client_name = :client_name"
+     values ={"client_name": client_url['name']}
+     registered_client= await db.fetch_all(sql, values)
+    #  print("registered_client************************")
+    #  print(registered_client)
+     
      db_write = await _get_db_write()
      print(client_url['url'])
+     print(client_url['name'])
      try:
-        insert_url = await db_write.execute("INSERT INTO Client_Urls(client_url) VALUES(:client_url)", values={"client_url": client_url['url']})
+        
+        if  not registered_client:
+            query_result = await db_write.execute("INSERT INTO Client_Urls(client_name, client_url) VALUES(:client_name, :client_url)", values={"client_name":client_url['name'],"client_url": client_url['url']})
+        else:
+            # query= "update Client_Urls SET client_url= where client_name='leaderboard'"
+            query_result = await db_write.execute("UPDATE  Client_Urls SET client_url =:client_url WHERE client_name =:client_name ", values={"client_name":client_url['name'],"client_url": client_url['url']})
      except sqlite3.IntegrityError as e:
         abort(409, e)
-     if insert_url:
+     if query_result:
         return {"success": "Client url registration successful"}, 201
      else:
         abort(417, "Client url registration failed")

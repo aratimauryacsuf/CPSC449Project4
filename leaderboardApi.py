@@ -6,6 +6,7 @@ import os
 import socket
 from quart import Quart, abort, g, request
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
+import time
 
 
 
@@ -23,15 +24,32 @@ class result:
     guess_count: int
 
 
-username = socket.getfqdn()
-env = os.environ
-port = env['PORT']
-print(env['PORT'])
-print(username)
 
-leaderboard_url = "http://127.0.0.1:5400/report_result"    
-response = httpx.post('http://127.0.0.1:5100/register_url', json={'url': leaderboard_url})
-print(response)
+def service_registration():
+   
+    success = False
+    wait_time = 2
+    while not success:
+        try:
+            hostname = socket.gethostbyname("localhost")
+            env = os.environ
+            port = env['PORT']
+            leaderboard_url = f"http://{hostname}:{port}/report_result"
+            # print(leader_url)
+            # leaderboard_url = "http://127.0.0.1:5400/report_result" 
+            game_service_url = 'http://127.0.0.1:5100/register_url'  
+            response = httpx.post(game_service_url, json={'url': leaderboard_url, 'name':'leaderboard'})
+            success = True
+            print("client registration successful") 
+        except Exception as e:
+            print(f"service registration failed retrying after{wait_time}")
+            time.sleep(wait_time)
+            wait_time += 2 
+
+
+service_registration()
+
+
 
 @app.route("/")
 
