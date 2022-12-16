@@ -11,8 +11,11 @@ import uuid
 import itertools
 import datetime
 import requests
+from module import send_score
 from redis import Redis
 from rq import Queue
+from rq.job import Job
+from rq.registry import FailedJobRegistry
 
 from quart import Quart, g, request, abort
 
@@ -40,6 +43,13 @@ class guess:
 class client_url:
     url: str
     name: str
+
+@dataclasses.dataclass
+class completed:
+    username: str
+    guess_num: int
+    outcome: str
+
 
 async def _get_db_write():
     db = getattr(g, "_sqlite_db", None)
@@ -70,6 +80,28 @@ def index():
         """
     )
 
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+registry = FailedJobRegistry(queue=q)
+
+#All urls
+async def enqueuejob():
+    db = await _get_db()
+    sql = "SELECT client_url FROM Client_Urls"
+    client_urls = await db.fetch_all(sql)
+    for x in range(len(client_urls)):
+        sampledict = {}
+        sampledict["username"] = "Arati"
+        sampledict["guess_num"] = 1
+        sampledict["outcome"] = "Win"
+        sampledict["url"] = client_urls[0][x]
+        #result=q.enqueue(send_score, json={'username': username, 'guess_num': guess_num, 'outcome': outcome, 'url': client_urls[x]})
+        send_score(sampledict)
+
+
+
+    #get all urls
+    #enqueue send_score
 
 # Start of Game API
 
@@ -101,7 +133,8 @@ async def update_inprogress(username, game_id):
 # New Game API
 @app.route("/newgame", methods=["POST"])
 async def newgame():
-    print('newgameeeeee')
+    await enqueuejob()
+
     username = request.authorization.username
    
     db = await _get_db()
