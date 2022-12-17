@@ -4,7 +4,7 @@
 ##### Arati Hanumanprasad Maurya
 ##### Dillon Go
 ##### Brijesh Prajapati
-##### SreeVidya Sreekantham
+##### Sreevidya Sreekantham
 ---
 ## **Setting up Redis**
 ##### `sudo apt install --yes redis`
