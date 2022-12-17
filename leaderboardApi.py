@@ -35,16 +35,17 @@ def service_registration():
             env = os.environ
             port = env['PORT']
             leaderboard_url = f"http://{hostname}:{port}/report_result"
-            # print(leader_url)
-            # leaderboard_url = "http://127.0.0.1:5400/report_result" 
-            game_service_url = 'http://127.0.0.1:5100/register_url'  
+            game_service_url = 'http://game.local.gd/register_url'  
             response = httpx.post(game_service_url, json={'url': leaderboard_url, 'name':'leaderboard'})
+            # if response.status_code != 201:
+            #     continue
             success = True
             print("client registration successful") 
         except Exception as e:
             print(f"service registration failed retrying after{wait_time}")
             time.sleep(wait_time)
             wait_time += 2 
+            continue
 
 
 service_registration()

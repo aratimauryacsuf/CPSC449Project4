@@ -18,5 +18,5 @@ static:
   hostname: "tuffix-vm"
 
   # Required. The API URL of the primary node.
-  advertise-url: "http://localhost:20202"
+  advertise-url: "http://tuffix-vm:20202"
 

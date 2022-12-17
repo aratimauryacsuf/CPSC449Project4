@@ -11,8 +11,11 @@ import uuid
 import itertools
 import datetime
 import requests
+from my_module import send_score
 from redis import Redis
 from rq import Queue
+from rq.job import Job
+from rq.registry import FailedJobRegistry
 
 from quart import Quart, g, request, abort
 
@@ -40,6 +43,13 @@ class guess:
 class client_url:
     url: str
     name: str
+
+@dataclasses.dataclass
+class completed:
+    username: str
+    guess_num: int
+    outcome: str
+
 
 async def _get_db_write():
     db = getattr(g, "_sqlite_db", None)
@@ -70,6 +80,30 @@ def index():
         """
     )
 
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+registry = FailedJobRegistry(queue=q)
+
+#All urls
+#add parameter
+async def enqueuejob(username, guess_num, outcome):
+    db = await _get_db()
+    sql = "SELECT client_url FROM Client_Urls"
+    client_urls = await db.fetch_all(sql)
+    for x in range(len(client_urls)):
+        sampledict = {}
+        sampledict["username"] = username
+        sampledict["guess_num"] = guess_num
+        sampledict["outcome"] = outcome
+        sampledict["url"] = client_urls[0][x]
+        result=q.enqueue(send_score, data = sampledict)
+
+    return 0
+
+
+
+    #get all urls
+    #enqueue send_score
 
 # Start of Game API
 
@@ -101,7 +135,6 @@ async def update_inprogress(username, game_id):
 # New Game API
 @app.route("/newgame", methods=["POST"])
 async def newgame():
-    print('newgameeeeee')
     username = request.authorization.username
    
     db = await _get_db()
@@ -228,6 +261,7 @@ async def guess(data):
         guessObject["guess"+str(guessCount)] = positionList
         guessObject["message"]="You guessed the secret word!"
         insert_completed = await db_write.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username":username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome":"Win"})
+        await enqueuejob(username[0], guessCount, "Win")
         delete_inprogress = await db_write.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]} )
         delete_guesses = await db_write.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
         return guessObject,200
@@ -277,6 +311,7 @@ async def guess(data):
         db_write = await _get_db_write()
 
         complete_game = await db_write.execute("INSERT INTO Completed(username, game_id, guess_num, outcome) VALUES(:username, :game_id, :guess_num, :outcome)", values={"username": username[0], "game_id":game_id[0], "guess_num":guessCount, "outcome": "Lose"})
+        await enqueuejob(username[0], guessCount, "Lose")
         delete_inprogress = await db_write.execute("DELETE FROM In_Progress WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
         delete_guesses = await db_write.execute("DELETE FROM Guesses WHERE game_id=:game_id" ,values={"game_id":game_id[0]})
         return guessObject, 200
