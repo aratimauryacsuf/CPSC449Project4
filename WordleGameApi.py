@@ -11,7 +11,7 @@ import uuid
 import itertools
 import datetime
 import requests
-from module import send_score
+from my_module import send_score
 from redis import Redis
 from rq import Queue
 from rq.job import Job
@@ -85,6 +85,7 @@ q = Queue(connection=redis_conn)
 registry = FailedJobRegistry(queue=q)
 
 #All urls
+#add parameter
 async def enqueuejob():
     db = await _get_db()
     sql = "SELECT client_url FROM Client_Urls"
@@ -95,8 +96,9 @@ async def enqueuejob():
         sampledict["guess_num"] = 1
         sampledict["outcome"] = "Win"
         sampledict["url"] = client_urls[0][x]
-        #result=q.enqueue(send_score, json={'username': username, 'guess_num': guess_num, 'outcome': outcome, 'url': client_urls[x]})
-        send_score(sampledict)
+        result=q.enqueue(send_score, data = sampledict)
+
+    return 0
 
 
 
